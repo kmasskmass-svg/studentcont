@@ -1,0 +1,1470 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دفتر المتابعة</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, 'Geeza Pro', system-ui, sans-serif;
+            background: #132A26;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #C9B98A;
+            border-radius: 8px;
+        }
+        #root {
+            min-height: 100vh;
+        }
+        input, button, textarea, select {
+            font-family: inherit;
+        }
+        button {
+            cursor: pointer;
+        }
+        #loading-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            color: #f4efe4;
+            padding: 20px;
+            text-align: center;
+        }
+        #loading-box .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top: 4px solid #B9862F;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #loading-box .status {
+            font-size: 18px;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        #loading-box .sub {
+            font-size: 14px;
+            color: #C9BFA0;
+        }
+        #loading-box .retry-btn {
+            margin-top: 15px;
+            padding: 10px 30px;
+            background: #B9862F;
+            color: #132A26;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #loading-box .retry-btn:hover {
+            background: #D4A24E;
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <div id="loading-box">
+            <div class="spinner"></div>
+            <div class="status" id="load-status">جارِ تحميل المكتبات...</div>
+            <div class="sub" id="load-sub">يرجى الانتظار</div>
+            <button class="retry-btn" id="retry-btn" style="display:none;">إعادة المحاولة</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+    <script>var rechartsSources = [
+    'https://cdnjs.cloudflare.com/ajax/libs/recharts/2.1.12/Recharts.min.js',
+    'https://unpkg.com/recharts@2.1.12/umd/Recharts.js',
+    'https://cdn.jsdelivr.net/npm/recharts@2.1.12/umd/Recharts.js'
+
+        ];
+
+        var currentSourceIndex = 0;
+        var loadStatus = document.getElementById('load-status');
+        var loadSub = document.getElementById('load-sub');
+        var retryBtn = document.getElementById('retry-btn');
+
+        function loadRecharts(url) {
+            loadStatus.textContent = 'جارِ تحميل Recharts من المصدر ' + (currentSourceIndex + 1) + '...';
+            loadSub.textContent = url;
+            var script = document.createElement('script');
+            script.src = url;
+            script.type = 'text/javascript';
+            script.async = false;
+
+            script.onload = function() {
+                if (typeof Recharts !== 'undefined') {
+                    loadStatus.textContent = '✅ تم تحميل المكتبات بنجاح';
+                    loadSub.textContent = '';
+                    startApp();
+                } else {
+                    tryNextSource();
+                }
+            };
+
+            script.onerror = function() {
+                tryNextSource();
+            };
+
+            document.head.appendChild(script);
+        }
+
+        function tryNextSource() {
+            currentSourceIndex++;
+            if (currentSourceIndex < rechartsSources.length) {
+                loadRecharts(rechartsSources[currentSourceIndex]);
+            } else {
+                loadStatus.textContent = '❌ تعذّر تحميل Recharts من جميع المصادر';
+                loadSub.textContent = 'يرجى التحقق من اتصالك بالإنترنت.';
+                retryBtn.style.display = 'inline-block';
+                retryBtn.onclick = function() {
+                    currentSourceIndex = 0;
+                    retryBtn.style.display = 'none';
+                    loadRecharts(rechartsSources[0]);
+                };
+            }
+        }
+
+        // تحميل Lucide React أولاً ثم Recharts
+        var lucideScript = document.createElement('script');
+        lucideScript.src = 'https://cdn.jsdelivr.net/npm/lucide-react@0.294.0/dist/umd/lucide-react.min.js';
+        lucideScript.type = 'text/javascript';
+        lucideScript.async = false;
+        lucideScript.onload = function() {
+            loadRecharts(rechartsSources[0]);
+        };
+        lucideScript.onerror = function() {
+            var fallback = document.createElement('script');
+            fallback.src = 'https://unpkg.com/lucide-react@0.294.0/dist/umd/lucide-react.min.js';
+            fallback.onload = function() { loadRecharts(rechartsSources[0]); };
+            document.head.appendChild(fallback);
+        };
+        document.head.appendChild(lucideScript);
+
+        function startApp() {
+            if (typeof window.runApp === 'function') {
+                document.getElementById('loading-box').style.display = 'none';
+                window.runApp();
+            } else {
+                setTimeout(startApp, 100);
+            }
+        }
+    </script>
+
+    <script type="text/babel">
+        window.runApp = function() {
+            const React = window.React;
+            const ReactDOM = window.ReactDOM;
+            const Recharts = window.Recharts;
+            const Lucide = window.LucideReact;
+
+            const { useState, useEffect, useMemo, useCallback } = React;
+            const {
+                RadialBarChart, RadialBar, BarChart, Bar, XAxis, YAxis,
+                CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell
+            } = Recharts;
+
+            const {
+                Plus, Trash2, Users, CalendarCheck, Award, StickyNote,
+                BarChart3, X, Check, Pencil, ChevronRight, AlertTriangle,
+                UserPlus, Settings2, ClipboardList, Upload
+            } = Lucide;
+
+            const SEED_STUDENTS = [
+                { id: "446144915", name: "أسامه راشد عائض الشهراني" },
+                { id: "446180489", name: "حمد بلغيث حسن الشهري" },
+                { id: "446152761", name: "مصعب سعيد محمد عسيري" },
+                { id: "446140063", name: "رائد بن احمد بن محمد العمامي الفيفي" },
+                { id: "446155036", name: "تركي بن يحي بن ابراهيم قذيلي" },
+                { id: "445217634", name: "عناد عبده احمد كيلاني" },
+                { id: "446152546", name: "عبدالعزيز بن احمد بن محمد فلقي عسيري" },
+                { id: "446152166", name: "سعود بن سعيد بن أحمد السمير" },
+                { id: "446146751", name: "سعود بن موسى بن احمد آل زاهر عسيري" },
+                { id: "446153424", name: "عادل بن أحمد بن ناصر آل عبدالرحمن عسيري" },
+                { id: "445218506", name: "بدر مفرح محمد عريشي" },
+                { id: "446144197", name: "عبدالرحمن بن علي بن هادي عسيري" },
+                { id: "446146278", name: "عبدالعزيز بن عبدالله بن عبدالرحمن البارقي" },
+                { id: "446148135", name: "يزيد محمد يوسف الخضيري عسيري" },
+                { id: "445219879", name: "محمد احمد جابر المالكي" },
+                { id: "445218550", name: "عامر سالم عامر الشهري" },
+                { id: "444230031", name: "محمد عبدالله احمد العاصمي" },
+                { id: "445217593", name: "حسين خالد محمد آل ابراهيم" },
+                { id: "446151881", name: "الحسن بن احمد بن عبدالله آل لصبح" },
+                { id: "445260305", name: "علي أحمد بن علي الشهراني" },
+                { id: "444226480", name: "تركي سعد حمد الشهراني" }
+            ];
+
+            const uid = (p = "id") => `${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+
+            const DEFAULT_SECTION = () => ({
+                id: uid("sec"),
+                name: "محاسبة التكاليف - الاثنين 8",
+                absenceLimitPct: 20,
+                students: SEED_STUDENTS.map((s) => ({ ...s, sid: uid("stu") })),
+                sessions: [],
+                attendance: {},
+                gradeItems: [
+                    { id: uid("gi"), name: "المشاركة", weight: 20, max: 20 },
+                    { id: uid("gi"), name: "الاختبار الأول", weight: 30, max: 30 },
+                    { id: uid("gi"), name: "الاختبار النهائي", weight: 50, max: 50 },
+                ],
+                grades: {},
+                notes: [],
+            });
+
+            const COLORS = {
+                ink: "#132A26",
+                ink2: "#1E3F38",
+                paper: "#F4EFE4",
+                paperCard: "#FFFDF8",
+                gold: "#B9862F",
+                goldSoft: "#E6C888",
+                line: "#DED2B3",
+                good: "#3E7A5E",
+                warn: "#C97A2B",
+                bad: "#A63B34",
+                muted: "#7A7161",
+            };
+
+            const thStyle = { textAlign: "right", padding: "10px 8px", fontSize: 12.5, color: COLORS.muted, fontWeight: 700 };
+            const tdStyle = { textAlign: "right", padding: "10px 8px", fontSize: 13.5, color: COLORS.ink, verticalAlign: "middle" };
+            const primaryBtnStyle = { display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", borderRadius: 9, border: "none", background: COLORS.gold, color: "#FFFFFF", fontWeight: 800, fontSize: 13.5, cursor: "pointer" };
+            const ghostBtnStyle = { display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 9, border: `1px solid ${COLORS.goldSoft}`, background: "transparent", color: "#8A6420", fontWeight: 700, fontSize: 13, cursor: "pointer" };
+
+            function useStorage() {
+                const [data, setData] = useState(null);
+                const [status, setStatus] = useState("loading");
+                const [saving, setSaving] = useState(false);
+
+                useEffect(() => {
+                    try {
+                        const stored = localStorage.getItem("tracker-data-v1");
+                        if (stored) {
+                            setData(JSON.parse(stored));
+                        } else {
+                            const fresh = { sections: [DEFAULT_SECTION()] };
+                            setData(fresh);
+                            localStorage.setItem("tracker-data-v1", JSON.stringify(fresh));
+                        }
+                        setStatus("ready");
+                    } catch (e) {
+                        const fresh = { sections: [DEFAULT_SECTION()] };
+                        setData(fresh);
+                        setStatus("ready");
+                    }
+                }, []);
+
+                const persist = useCallback((next) => {
+                    setData(next);
+                    setSaving(true);
+                    try {
+                        localStorage.setItem("tracker-data-v1", JSON.stringify(next));
+                    } catch (e) {
+                        console.error(e);
+                    } finally {
+                        setTimeout(() => setSaving(false), 300);
+                    }
+                }, []);
+
+                return { data, setData: persist, status, saving };
+            }
+
+            function computeAttendancePct(section, studentSid) {
+                const total = section.sessions.length;
+                if (total === 0) return { pct: 0, absentCount: 0, total: 0 };
+                let absent = 0;
+                section.sessions.forEach((s) => {
+                    const st = section.attendance[`${s.id}:${studentSid}`];
+                    if (st === "غائب") absent += 1;
+                });
+                return { pct: Math.round((absent / total) * 1000) / 10, absentCount: absent, total };
+            }
+
+            function computeWeightedTotal(section, studentSid) {
+                let earned = 0;
+                let weightSum = 0;
+                const breakdown = section.gradeItems.map((gi) => {
+                    const raw = section.grades[`${gi.id}:${studentSid}`];
+                    const score = typeof raw === "number" ? raw : 0;
+                    const ratio = gi.max > 0 ? score / gi.max : 0;
+                    const weighted = ratio * gi.weight;
+                    earned += weighted;
+                    weightSum += gi.weight;
+                    return { name: gi.name, score, max: gi.max, weight: gi.weight, weighted: Math.round(weighted * 100) / 100, has: raw !== undefined };
+                });
+                return { total: Math.round(earned * 100) / 100, weightSum, breakdown };
+            }
+
+            function IconBtn({ onClick, title, children, tone = "default", small }) {
+                const toneColor = tone === "danger" ? COLORS.bad : tone === "gold" ? COLORS.gold : COLORS.ink2;
+                return (
+                    <button
+                        onClick={onClick}
+                        title={title}
+                        style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: small ? 30 : 36,
+                            height: small ? 30 : 36,
+                            borderRadius: 10,
+                            border: `1px solid ${COLORS.line}`,
+                            background: COLORS.paperCard,
+                            color: toneColor,
+                            cursor: "pointer",
+                            transition: "all .15s",
+                        }}
+                    >
+                        {children}
+                    </button>
+                );
+            }
+
+            function Badge({ children, tone = "muted" }) {
+                const map = {
+                    good: { bg: "#E9F3EC", c: COLORS.good },
+                    warn: { bg: "#FBEEDD", c: COLORS.warn },
+                    bad: { bg: "#F7E8E6", c: COLORS.bad },
+                    muted: { bg: "#EFE9D8", c: COLORS.muted },
+                    gold: { bg: "#F4E7C9", c: "#8A6420" },
+                };
+                const s = map[tone] || map.muted;
+                return (
+                    <span style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        padding: "3px 10px",
+                        borderRadius: 999,
+                        fontSize: 12.5,
+                        fontWeight: 700,
+                        background: s.bg,
+                        color: s.c,
+                        whiteSpace: "nowrap",
+                    }}>
+                        {children}
+                    </span>
+                );
+            }
+
+            function TextInput(props) {
+                return (
+                    <input
+                        {...props}
+                        style={{
+                            width: "100%",
+                            padding: "9px 12px",
+                            borderRadius: 9,
+                            border: `1px solid ${COLORS.line}`,
+                            background: "#FFFFFF",
+                            fontSize: 14,
+                            color: COLORS.ink,
+                            outline: "none",
+                            fontFamily: "inherit",
+                            ...(props.style || {}),
+                        }}
+                    />
+                );
+            }
+
+            function SectionCard({ children, style }) {
+                return (
+                    <div style={{
+                        background: COLORS.paperCard,
+                        border: `1px solid ${COLORS.line}`,
+                        borderRadius: 16,
+                        padding: 20,
+                        boxShadow: "0 1px 2px rgba(19,42,38,0.04)",
+                        ...style,
+                    }}>
+                        {children}
+                    </div>
+                );
+            }
+
+            function TopBar({ saving, section, sections, onSwitch, onManage }) {
+                return (
+                    <div style={{ maxWidth: 1180, margin: "0 auto", padding: "26px 22px 0" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                                <div style={{
+                                    width: 44,
+                                    height: 44,
+                                    borderRadius: 12,
+                                    background: COLORS.gold,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    flexShrink: 0,
+                                }}>
+                                    <ClipboardList size={22} color={COLORS.ink} strokeWidth={2.2} />
+                                </div>
+                                <div>
+                                    <div style={{ color: COLORS.paper, fontSize: 20, fontWeight: 800, letterSpacing: 0.2 }}>دفتر المتابعة</div>
+                                    <div style={{ color: "#C9BFA0", fontSize: 12.5 }}>متابعة الحضور والدرجات والملاحظات للمتدربين</div>
+                                </div>
+                            </div>
+
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                                <div style={{ fontSize: 12, color: saving ? COLORS.goldSoft : "#9FB8A9", minWidth: 78, textAlign: "center" }}>
+                                    {saving ? "جارِ الحفظ..." : "محفوظ ✓"}
+                                </div>
+                                <select
+                                    value={section?.id || ""}
+                                    onChange={(e) => onSwitch(e.target.value)}
+                                    style={{
+                                        padding: "9px 12px",
+                                        borderRadius: 10,
+                                        border: `1px solid ${COLORS.goldSoft}`,
+                                        background: "#1E3F38",
+                                        color: COLORS.paper,
+                                        fontSize: 13.5,
+                                        minWidth: 200,
+                                    }}
+                                >
+                                    {sections.map((s) => (
+                                        <option key={s.id} value={s.id}>{s.name}</option>
+                                    ))}
+                                </select>
+                                <button
+                                    onClick={onManage}
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 6,
+                                        padding: "9px 14px",
+                                        borderRadius: 10,
+                                        border: `1px solid ${COLORS.goldSoft}`,
+                                        background: "transparent",
+                                        color: COLORS.goldSoft,
+                                        fontSize: 13.5,
+                                        cursor: "pointer",
+                                        fontWeight: 700,
+                                    }}
+                                >
+                                    <Settings2 size={16} /> إدارة الشعب
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            function SectionHeader({ section }) {
+                const total = section.students.length;
+                const overLimit = section.students.filter((st) => computeAttendancePct(section, st.sid).pct >= section.absenceLimitPct).length;
+                const avgTotal = total
+                    ? Math.round((section.students.reduce((acc, st) => acc + computeWeightedTotal(section, st.sid).total, 0) / total) * 10) / 10
+                    : 0;
+
+                return (
+                    <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 18, marginTop: -46 }}>
+                        <StatCard icon={<Users size={18} />} label="عدد المتدربين" value={total} />
+                        <StatCard icon={<CalendarCheck size={18} />} label="عدد الجلسات المسجّلة" value={section.sessions.length} />
+                        <StatCard icon={<AlertTriangle size={18} />} label={`تجاوزوا حد الغياب (${section.absenceLimitPct}%)`} value={overLimit} tone={overLimit > 0 ? "bad" : "good"} />
+                        <StatCard icon={<Award size={18} />} label="متوسط الدرجة الموزونة" value={avgTotal} />
+                    </div>
+                );
+            }
+
+            function StatCard({ icon, label, value, tone }) {
+                const color = tone === "bad" ? COLORS.bad : tone === "good" ? COLORS.good : COLORS.ink;
+                return (
+                    <div style={{
+                        background: COLORS.paperCard,
+                        border: `1px solid ${COLORS.line}`,
+                        borderRadius: 14,
+                        padding: "14px 18px",
+                        minWidth: 175,
+                        flex: "1 1 175px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        boxShadow: "0 6px 16px rgba(19,42,38,0.08)",
+                    }}>
+                        <div style={{
+                            width: 38,
+                            height: 38,
+                            borderRadius: 10,
+                            background: "#F4E7C9",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: COLORS.gold,
+                            flexShrink: 0
+                        }}>
+                            {icon}
+                        </div>
+                        <div>
+                            <div style={{ fontSize: 21, fontWeight: 800, color }}>{value}</div>
+                            <div style={{ fontSize: 12, color: COLORS.muted }}>{label}</div>
+                        </div>
+                    </div>
+                );
+            }
+
+            function Tabs({ tab, setTab }) {
+                const items = [
+                    { id: "students", label: "المتدربون", icon: <Users size={15} /> },
+                    { id: "attendance", label: "الحضور", icon: <CalendarCheck size={15} /> },
+                    { id: "grades", label: "الدرجات", icon: <Award size={15} /> },
+                    { id: "notes", label: "الملاحظات", icon: <StickyNote size={15} /> },
+                    { id: "reports", label: "التقارير", icon: <BarChart3 size={15} /> },
+                ];
+                return (
+                    <div style={{ display: "flex", gap: 6, marginBottom: 18, borderBottom: `2px solid ${COLORS.line}`, flexWrap: "wrap" }}>
+                        {items.map((it) => (
+                            <button
+                                key={it.id}
+                                onClick={() => setTab(it.id)}
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 7,
+                                    padding: "10px 16px",
+                                    background: "transparent",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    borderBottom: tab === it.id ? `3px solid ${COLORS.gold}` : "3px solid transparent",
+                                    color: tab === it.id ? COLORS.ink : COLORS.muted,
+                                    fontWeight: tab === it.id ? 800 : 600,
+                                    fontSize: 14,
+                                    marginBottom: -2,
+                                }}
+                            >
+                                {it.icon} {it.label}
+                            </button>
+                        ))}
+                    </div>
+                );
+            }
+
+            function StudentsTab({ section, updateSection, onOpenStudent }) {
+                const [newId, setNewId] = useState("");
+                const [newName, setNewName] = useState("");
+                const [editingSid, setEditingSid] = useState(null);
+                const [editVals, setEditVals] = useState({ id: "", name: "" });
+
+                const [bulkText, setBulkText] = useState("");
+                const [showBulk, setShowBulk] = useState(false);
+
+                const [showFileImport, setShowFileImport] = useState(false);
+                const [fileColumns, setFileColumns] = useState([]);
+                const [fileRows, setFileRows] = useState([]);
+                const [selectedNameCol, setSelectedNameCol] = useState("");
+                const [selectedIdCol, setSelectedIdCol] = useState("");
+                const [fileError, setFileError] = useState("");
+
+                const addStudent = () => {
+                    if (!newName.trim()) return;
+                    updateSection((s) => ({
+                        ...s,
+                        students: [...s.students, { sid: uid("stu"), id: newId.trim() || "-", name: newName.trim() }],
+                    }));
+                    setNewId("");
+                    setNewName("");
+                };
+
+                const removeStudent = (sid) => {
+                    updateSection((s) => ({
+                        ...s,
+                        students: s.students.filter((st) => st.sid !== sid),
+                    }));
+                };
+
+                const startEdit = (st) => {
+                    setEditingSid(st.sid);
+                    setEditVals({ id: st.id, name: st.name });
+                };
+
+                const saveEdit = () => {
+                    updateSection((s) => ({
+                        ...s,
+                        students: s.students.map((st) => (st.sid === editingSid ? { ...st, id: editVals.id, name: editVals.name } : st)),
+                    }));
+                    setEditingSid(null);
+                };
+
+                const importBulk = () => {
+                    const lines = bulkText.split("\n").map((l) => l.trim()).filter(Boolean);
+                    const parsed = lines.map((line) => {
+                        const parts = line.split(/\t|,|\s{2,}/).map((p) => p.trim()).filter(Boolean);
+                        if (parts.length >= 2) return { sid: uid("stu"), id: parts[0], name: parts.slice(1).join(" ") };
+                        return { sid: uid("stu"), id: "-", name: line };
+                    });
+                    updateSection((s) => ({ ...s, students: [...s.students, ...parsed] }));
+                    setBulkText("");
+                    setShowBulk(false);
+                };
+
+                const handleFileChange = (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    setFileError("");
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        try {
+                            const content = ev.target.result;
+                            const lines = content.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+                            if (lines.length < 2) {
+                                setFileError("الملف لا يحتوي على بيانات كافية (يتطلب سطر عناوين وسطر بيانات على الأقل).");
+                                return;
+                            }
+                            const header = lines[0].split(/,|\t|;/).map(c => c.trim().replace(/^["']|["']$/g, ''));
+                            const rows = lines.slice(1).map(l => l.split(/,|\t|;/).map(c => c.trim().replace(/^["']|["']$/g, '')));
+
+                            setFileColumns(header);
+                            setFileRows(rows);
+
+                            const nameIdx = header.findIndex(h => h.includes("اسم") || h.toLowerCase().includes("name"));
+                            const idIdx = header.findIndex(h => h.includes("رقم") || h.includes("جامعي") || h.toLowerCase().includes("id"));
+
+                            setSelectedNameCol(nameIdx !== -1 ? header[nameIdx] : (header[0] || ""));
+                            setSelectedIdCol(idIdx !== -1 ? header[idIdx] : (header[1] || header[0] || ""));
+
+                            setShowFileImport(true);
+                        } catch (err) {
+                            setFileError("حدث خطأ أثناء قراءة الملف.");
+                        }
+                    };
+                    reader.readAsText(file, "UTF-8");
+                };
+
+                const confirmFileImport = () => {
+                    if (!selectedNameCol || !selectedIdCol) {
+                        setFileError("يرجى اختيار العمود المناسب للاسم والرقم الجامعي.");
+                        return;
+                    }
+                    const nameIndex = fileColumns.indexOf(selectedNameCol);
+                    const idIndex = fileColumns.indexOf(selectedIdCol);
+
+                    const imported = fileRows.map(row => {
+                        const name = row[nameIndex] || "بدون اسم";
+                        const id = row[idIndex] || "-";
+                        return { sid: uid("stu"), id, name };
+                    }).filter(st => st.name !== "بدون اسم" || st.id !== "-");
+
+                    if (imported.length === 0) {
+                        setFileError("لم يتم استخراج أي بيانات صالحة.");
+                        return;
+                    }
+
+                    updateSection(s => ({
+                        ...s,
+                        students: [...s.students, ...imported]
+                    }));
+
+                    setShowFileImport(false);
+                    setFileColumns([]);
+                    setFileRows([]);
+                    setFileError("");
+                };
+
+                return (
+                    <SectionCard>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+                            <div style={{ fontSize: 16, fontWeight: 800, color: COLORS.ink }}>قائمة المتدربين ({section.students.length})</div>
+                            <div style={{ display: "flex", gap: 8 }}>
+                                <button onClick={() => setShowBulk(!showBulk)} style={ghostBtnStyle}>
+                                    <UserPlus size={15} /> إضافة جماعية (نص)
+                                </button>
+                                <label style={{ ...ghostBtnStyle, cursor: "pointer" }}>
+                                    <Upload size={15} /> استيراد من ملف CSV
+                                    <input type="file" accept=".csv,.txt" onChange={handleFileChange} style={{ display: "none" }} />
+                                </label>
+                            </div>
+                        </div>
+
+                        {showBulk && (
+                            <div style={{ background: "#F9F4E7", padding: 14, borderRadius: 12, marginBottom: 16, border: `1px solid ${COLORS.line}` }}>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink, marginBottom: 6 }}>
+                                    ألصق البيانات هنا (الرقم الجامعي ثم الاسم، يفصل بينهما مسافة أو Tab):
+                                </div>
+                                <textarea
+                                    value={bulkText}
+                                    onChange={(e) => setBulkText(e.target.value)}
+                                    rows={4}
+                                    placeholder="446144915 أسامه راشد عائض الشهراني&#10;446180489 حمد بلغيث حسن الشهري"
+                                    style={{ width: "100%", padding: 10, borderRadius: 8, border: `1px solid ${COLORS.line}`, fontSize: 13, fontFamily: "inherit" }}
+                                />
+                                <div style={{ display: "flex", gap: 8, marginTop: 8, justifyContent: "flex-end" }}>
+                                    <button onClick={() => setShowBulk(false)} style={{ ...ghostBtnStyle, padding: "6px 12px" }}>إلغاء</button>
+                                    <button onClick={importBulk} style={{ ...primaryBtnStyle, padding: "6px 14px" }}>حفظ القائمة</button>
+                                </div>
+                            </div>
+                        )}
+
+                        {showFileImport && (
+                            <div style={{ background: "#F9F4E7", padding: 14, borderRadius: 12, marginBottom: 16, border: `1px solid ${COLORS.line}` }}>
+                                <div style={{ fontSize: 14, fontWeight: 800, color: COLORS.ink, marginBottom: 10 }}>تحديد أعمدة ملف CSV/TXT:</div>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+                                    <div>
+                                        <label style={{ fontSize: 12, fontWeight: 700, display: "block", marginBottom: 4 }}>عمود الاسم:</label>
+                                        <select value={selectedNameCol} onChange={(e) => setSelectedNameCol(e.target.value)} style={{ width: "100%", padding: 8, borderRadius: 8, border: `1px solid ${COLORS.line}` }}>
+                                            {fileColumns.map(col => <option key={col} value={col}>{col}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style={{ fontSize: 12, fontWeight: 700, display: "block", marginBottom: 4 }}>عمود الرقم الجامعي:</label>
+                                        <select value={selectedIdCol} onChange={(e) => setSelectedIdCol(e.target.value)} style={{ width: "100%", padding: 8, borderRadius: 8, border: `1px solid ${COLORS.line}` }}>
+                                            {fileColumns.map(col => <option key={col} value={col}>{col}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                                {fileError && <div style={{ color: COLORS.bad, fontSize: 12.5, marginBottom: 8 }}>{fileError}</div>}
+                                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                                    <button onClick={() => setShowFileImport(false)} style={{ ...ghostBtnStyle, padding: "6px 12px" }}>إلغاء</button>
+                                    <button onClick={confirmFileImport} style={{ ...primaryBtnStyle, padding: "6px 14px" }}>تأكيد الاستيراد ({fileRows.length} صف)</button>
+                                </div>
+                            </div>
+                        )}
+
+                        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+                            <div style={{ flex: "1 1 150px" }}>
+                                <TextInput placeholder="الرقم الجامعي" value={newId} onChange={(e) => setNewId(e.target.value)} />
+                            </div>
+                            <div style={{ flex: "2 1 250px" }}>
+                                <TextInput placeholder="اسم المتدرب الرباعي" value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addStudent()} />
+                            </div>
+                            <button onClick={addStudent} style={primaryBtnStyle}>
+                                <Plus size={15} /> إضافة
+                            </button>
+                        </div>
+
+                        <div style={{ overflowX: "auto" }}>
+                            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                <thead>
+                                    <tr style={{ borderBottom: `2px solid ${COLORS.line}` }}>
+                                        <th style={thStyle}>#</th>
+                                        <th style={thStyle}>الرقم الجامعي</th>
+                                        <th style={thStyle}>الاسم</th>
+                                        <th style={thStyle}>نسبة الغياب</th>
+                                        <th style={thStyle}>الدرجة الموزونة</th>
+                                        <th style={thStyle}></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {section.students.map((st, idx) => {
+                                        const att = computeAttendancePct(section, st.sid);
+                                        const grd = computeWeightedTotal(section, st.sid);
+                                        const over = att.pct >= section.absenceLimitPct;
+                                        const editing = editingSid === st.sid;
+                                        return (
+                                            <tr key={st.sid} style={{ borderBottom: `1px solid ${COLORS.line}` }}>
+                                                <td style={tdStyle}>{idx + 1}</td>
+                                                <td style={tdStyle}>
+                                                    {editing ? (
+                                                        <TextInput value={editVals.id} onChange={(e) => setEditVals((v) => ({ ...v, id: e.target.value }))} />
+                                                    ) : st.id}
+                                                </td>
+                                                <td style={{ ...tdStyle, fontWeight: 700, cursor: "pointer", color: COLORS.ink2 }} onClick={() => onOpenStudent(st.sid)}>
+                                                    {editing ? (
+                                                        <TextInput value={editVals.name} onChange={(e) => setEditVals((v) => ({ ...v, name: e.target.value }))} />
+                                                    ) : st.name}
+                                                </td>
+                                                <td style={tdStyle}>
+                                                    <Badge tone={over ? "bad" : "good"}>{att.pct}% ({att.absentCount}/{att.total})</Badge>
+                                                </td>
+                                                <td style={tdStyle}>
+                                                    <Badge tone="gold">{grd.total} / {grd.weightSum}</Badge>
+                                                </td>
+                                                <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>
+                                                    <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                                                        {editing ? (
+                                                            <IconBtn onClick={saveEdit} title="حفظ" small><Check size={15} /></IconBtn>
+                                                        ) : (
+                                                            <IconBtn onClick={() => startEdit(st)} title="تعديل" small><Pencil size={14} /></IconBtn>
+                                                        )}
+                                                        <IconBtn onClick={() => removeStudent(st.sid)} title="حذف" tone="danger" small><Trash2 size={14} /></IconBtn>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                    {section.students.length === 0 && (
+                                        <tr>
+                                            <td colSpan={6} style={{ ...tdStyle, textAlign: "center", color: COLORS.muted, padding: 24 }}>لا يوجد متدربون بعد</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </SectionCard>
+                );
+            }
+
+            function AttendanceTab({ section, updateSection }) {
+                const [newLabel, setNewLabel] = useState("");
+                const [newDate, setNewDate] = useState(() => new Date().toISOString().slice(0, 10));
+                const [activeSessionId, setActiveSessionId] = useState(section.sessions[section.sessions.length - 1]?.id || null);
+
+                useEffect(() => {
+                    if (!activeSessionId && section.sessions.length) {
+                        setActiveSessionId(section.sessions[section.sessions.length - 1].id);
+                    }
+                }, [section.sessions, activeSessionId]);
+
+                const addSession = () => {
+                    const label = newLabel.trim() || `جلسة ${section.sessions.length + 1}`;
+                    const s = { id: uid("ses"), label, date: newDate };
+                    updateSection((sec) => ({ ...sec, sessions: [...sec.sessions, s] }));
+                    setActiveSessionId(s.id);
+                    setNewLabel("");
+                };
+
+                const removeSession = (id) => {
+                    updateSection((sec) => ({
+                        ...sec,
+                        sessions: sec.sessions.filter((s) => s.id !== id),
+                    }));
+                    if (activeSessionId === id) {
+                        const remaining = section.sessions.filter((s) => s.id !== id);
+                        setActiveSessionId(remaining[remaining.length - 1]?.id || null);
+                    }
+                };
+
+                const setStatus = (sid, st) => {
+                    if (!activeSessionId) return;
+                    updateSection((sec) => ({
+                        ...sec,
+                        attendance: { ...sec.attendance, [`${activeSessionId}:${sid}`]: st },
+                    }));
+                };
+
+                const statusBg = (st) => (st === "غائب" ? "#F7E8E6" : st === "مستأذن" ? "#FBEEDD" : "#E9F3EC");
+                const statusColor = (st) => (st === "غائب" ? COLORS.bad : st === "مستأذن" ? COLORS.warn : COLORS.good);
+
+                const activeSession = section.sessions.find((s) => s.id === activeSessionId);
+
+                return (
+                    <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 16 }}>
+                        <SectionCard style={{ padding: 14 }}>
+                            <div style={{ fontSize: 14, fontWeight: 800, color: COLORS.ink, marginBottom: 10 }}>جلسات التحضير</div>
+                            <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                                <TextInput type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
+                            </div>
+                            <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+                                <TextInput placeholder="اسم الجلسة (اختياري)" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} />
+                                <IconBtn onClick={addSession} title="إضافة جلسة"><Plus size={16} /></IconBtn>
+                            </div>
+
+                            <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 420, overflowY: "auto" }}>
+                                {section.sessions.slice().reverse().map((s) => (
+                                    <div
+                                        key={s.id}
+                                        onClick={() => setActiveSessionId(s.id)}
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "space-between",
+                                            padding: "9px 10px",
+                                            borderRadius: 9,
+                                            cursor: "pointer",
+                                            background: activeSessionId === s.id ? "#F4E7C9" : "transparent",
+                                            border: `1px solid ${activeSessionId === s.id ? COLORS.gold : "transparent"}`,
+                                        }}
+                                    >
+                                        <div>
+                                            <div style={{ fontSize: 13.5, fontWeight: 700, color: COLORS.ink }}>{s.label}</div>
+                                            <div style={{ fontSize: 11, color: COLORS.muted }}>{s.date}</div>
+                                        </div>
+                                        <Trash2 size={13} color={COLORS.bad} onClick={(e) => { e.stopPropagation(); removeSession(s.id); }} />
+                                    </div>
+                                ))}
+                                {section.sessions.length === 0 && (
+                                    <div style={{ color: COLORS.muted, fontSize: 13, textAlign: "center", padding: 12 }}>لا توجد جلسات بعد</div>
+                                )}
+                            </div>
+                        </SectionCard>
+
+                        <SectionCard>
+                            {activeSession ? (
+                                <div>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                                        <div style={{ fontSize: 16, fontWeight: 800, color: COLORS.ink }}>
+                                            تحضير: {activeSession.label} ({activeSession.date})
+                                        </div>
+                                    </div>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                        {section.students.map((st) => {
+                                            const cur = section.attendance[`${activeSessionId}:${st.sid}`] || "حاضر";
+                                            return (
+                                                <div key={st.sid} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 4px", borderBottom: `1px solid ${COLORS.line}` }}>
+                                                    <div style={{ fontSize: 14, color: COLORS.ink }}>
+                                                        {st.name} <span style={{ color: COLORS.muted, fontSize: 12 }}>({st.id})</span>
+                                                    </div>
+                                                    <div style={{ display: "flex", gap: 6 }}>
+                                                        {["حاضر", "غائب", "مستأذن"].map((opt) => (
+                                                            <button
+                                                                key={opt}
+                                                                onClick={() => setStatus(st.sid, opt)}
+                                                                style={{
+                                                                    padding: "6px 12px",
+                                                                    borderRadius: 8,
+                                                                    fontSize: 12.5,
+                                                                    fontWeight: 700,
+                                                                    cursor: "pointer",
+                                                                    border: `1px solid ${cur === opt ? statusColor(opt) : COLORS.line}`,
+                                                                    background: cur === opt ? statusBg(opt) : "transparent",
+                                                                    color: cur === opt ? statusColor(opt) : COLORS.muted,
+                                                                }}
+                                                            >
+                                                                {opt}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                        {section.students.length === 0 && (
+                                            <div style={{ color: COLORS.muted, fontSize: 13, textAlign: "center", padding: 20 }}>قم بإضافة متدربين في تبويب المتدربين لتتمكن من التحضير</div>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div style={{ textAlign: "center", color: COLORS.muted, padding: 40 }}>يرجى اختيار جلسة أو إنشاء جلسة جديدة لتبدأ التحضير</div>
+                            )}
+                        </SectionCard>
+                    </div>
+                );
+            }
+
+            function GradesTab({ section, updateSection }) {
+                const [newItemName, setNewItemName] = useState("");
+                const [newItemWeight, setNewItemWeight] = useState("");
+                const [newItemMax, setNewItemMax] = useState("");
+
+                const addGradeItem = () => {
+                    if (!newItemName.trim()) return;
+                    const w = parseFloat(newItemWeight) || 10;
+                    const m = parseFloat(newItemMax) || w;
+                    const item = { id: uid("gi"), name: newItemName.trim(), weight: w, max: m };
+                    updateSection((s) => ({ ...s, gradeItems: [...s.gradeItems, item] }));
+                    setNewItemName("");
+                    setNewItemWeight("");
+                    setNewItemMax("");
+                };
+
+                const removeGradeItem = (gid) => {
+                    updateSection((s) => ({
+                        ...s,
+                        gradeItems: s.gradeItems.filter((g) => g.id !== gid),
+                    }));
+                };
+
+                const setScore = (gid, sid, val) => {
+                    const parsed = val === "" ? undefined : parseFloat(val);
+                    updateSection((s) => {
+                        const nextGrades = { ...s.grades };
+                        if (parsed === undefined || isNaN(parsed)) {
+                            delete nextGrades[`${gid}:${sid}`];
+                        } else {
+                            nextGrades[`${gid}:${sid}`] = parsed;
+                        }
+                        return { ...s, grades: nextGrades };
+                    });
+                };
+
+                return (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        <SectionCard>
+                            <div style={{ fontSize: 14, fontWeight: 800, color: COLORS.ink, marginBottom: 10 }}>عناصر التقييم والمجموع الموزون</div>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                                <TextInput placeholder="اسم الاختبار / المهمة" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} style={{ flex: "2 1 180px" }} />
+                                <TextInput placeholder="الوزن %" type="number" value={newItemWeight} onChange={(e) => setNewItemWeight(e.target.value)} style={{ flex: "1 1 90px" }} />
+                                <TextInput placeholder="الدرجة العظمى" type="number" value={newItemMax} onChange={(e) => setNewItemMax(e.target.value)} style={{ flex: "1 1 90px" }} />
+                                <button onClick={addGradeItem} style={primaryBtnStyle}><Plus size={15} /> إضافة عنصر</button>
+                            </div>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                {section.gradeItems.map((gi) => (
+                                    <div key={gi.id} style={{ display: "flex", alignItems: "center", gap: 6, background: "#F4E7C9", padding: "4px 10px", borderRadius: 8, fontSize: 12.5, fontWeight: 700, color: COLORS.ink }}>
+                                        <span>{gi.name} ({gi.weight}% - العظمى {gi.max})</span>
+                                        <Trash2 size={13} color={COLORS.bad} style={{ cursor: "pointer" }} onClick={() => removeGradeItem(gi.id)} />
+                                    </div>
+                                ))}
+                            </div>
+                        </SectionCard>
+
+                        <SectionCard>
+                            <div style={{ fontWeight: 800, color: COLORS.ink, marginBottom: 12 }}>سجل الدرجات</div>
+                            <div style={{ overflowX: "auto" }}>
+                                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                    <thead>
+                                        <tr style={{ borderBottom: `2px solid ${COLORS.line}` }}>
+                                            <th style={thStyle}>الاسم</th>
+                                            {section.gradeItems.map((gi) => (
+                                                <th key={gi.id} style={thStyle}>
+                                                    {gi.name}
+                                                    <div style={{ fontWeight: 400, fontSize: 10.5, color: COLORS.muted }}>من {gi.max} ({gi.weight}%)</div>
+                                                </th>
+                                            ))}
+                                            <th style={thStyle}>الإجمالي الموزون</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {section.students.map((st) => {
+                                            const grd = computeWeightedTotal(section, st.sid);
+                                            return (
+                                                <tr key={st.sid} style={{ borderBottom: `1px solid ${COLORS.line}` }}>
+                                                    <td style={{ ...tdStyle, fontWeight: 700 }}>{st.name}</td>
+                                                    {section.gradeItems.map((gi) => (
+                                                        <td key={gi.id} style={tdStyle}>
+                                                            <input
+                                                                type="number"
+                                                                min={0}
+                                                                max={gi.max}
+                                                                value={section.grades[`${gi.id}:${st.sid}`] ?? ""}
+                                                                onChange={(e) => setScore(gi.id, st.sid, e.target.value)}
+                                                                style={{ width: 66, padding: "6px 8px", borderRadius: 7, border: `1px solid ${COLORS.line}`, textAlign: "center" }}
+                                                            />
+                                                        </td>
+                                                    ))}
+                                                    <td style={tdStyle}>
+                                                        <Badge tone="gold">{grd.total} / {grd.weightSum}</Badge>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                        {section.students.length === 0 && (
+                                            <tr>
+                                                <td colSpan={section.gradeItems.length + 2} style={{ ...tdStyle, textAlign: "center", color: COLORS.muted, padding: 20 }}>لا يوجد متدربون بعد</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </SectionCard>
+                    </div>
+                );
+            }
+
+            function NotesTab({ section, updateSection }) {
+                const [studentSid, setStudentSid] = useState(section.students[0]?.sid || "");
+                const [text, setText] = useState("");
+
+                useEffect(() => {
+                    if (!studentSid && section.students.length) {
+                        setStudentSid(section.students[0].sid);
+                    }
+                }, [section.students, studentSid]);
+
+                const addNote = () => {
+                    if (!text.trim() || !studentSid) return;
+                    const n = { id: uid("note"), studentSid, text: text.trim(), date: new Date().toISOString().slice(0, 10) };
+                    updateSection((s) => ({ ...s, notes: [n, ...s.notes] }));
+                    setText("");
+                };
+
+                const removeNote = (nid) => {
+                    updateSection((s) => ({ ...s, notes: s.notes.filter((n) => n.id !== nid) }));
+                };
+
+                return (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: 16 }}>
+                        <SectionCard style={{ alignSelf: "start" }}>
+                            <div style={{ fontWeight: 800, color: COLORS.ink, marginBottom: 12 }}>إضافة ملاحظة</div>
+                            <div style={{ marginBottom: 10 }}>
+                                <select
+                                    value={studentSid}
+                                    onChange={(e) => setStudentSid(e.target.value)}
+                                    style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: `1px solid ${COLORS.line}`, fontSize: 14 }}
+                                >
+                                    {section.students.map((st) => (
+                                        <option key={st.sid} value={st.sid}>{st.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <textarea
+                                value={text}
+                                onChange={(e) => setText(e.target.value)}
+                                rows={4}
+                                placeholder="اكتب ملاحظتك عن أداء أو سلوك المتدرب..."
+                                style={{ width: "100%", padding: 10, borderRadius: 9, border: `1px solid ${COLORS.line}`, fontSize: 14, resize: "vertical", marginBottom: 10, fontFamily: "inherit" }}
+                            />
+                            <button onClick={addNote} style={primaryBtnStyle}><Plus size={15} /> حفظ الملاحظة</button>
+                        </SectionCard>
+
+                        <SectionCard>
+                            <div style={{ fontWeight: 800, color: COLORS.ink, marginBottom: 12 }}>سجل الملاحظات ({section.notes.length})</div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 480, overflowY: "auto" }}>
+                                {section.notes.map((n) => {
+                                    const st = section.students.find((s) => s.sid === n.studentSid);
+                                    return (
+                                        <div key={n.id} style={{ background: "#F9F4E7", borderRadius: 10, padding: 12, border: `1px solid ${COLORS.line}` }}>
+                                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                                                <span style={{ fontWeight: 700, fontSize: 13.5, color: COLORS.ink }}>{st?.name || "متدرب محذوف"}</span>
+                                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                    <span style={{ fontSize: 11, color: COLORS.muted }}>{n.date}</span>
+                                                    <Trash2 size={13} color={COLORS.bad} style={{ cursor: "pointer" }} onClick={() => removeNote(n.id)} />
+                                                </div>
+                                            </div>
+                                            <div style={{ fontSize: 13.5, color: COLORS.ink, lineHeight: 1.6 }}>{n.text}</div>
+                                        </div>
+                                    );
+                                })}
+                                {section.notes.length === 0 && (
+                                    <div style={{ color: COLORS.muted, fontSize: 13, textAlign: "center", padding: 20 }}>لا توجد ملاحظات بعد</div>
+                                )}
+                            </div>
+                        </SectionCard>
+                    </div>
+                );
+            }
+
+            function ReportsTab({ section, onOpenStudent }) {
+                const rows = section.students.map((st) => {
+                    const att = computeAttendancePct(section, st.sid);
+                    const grd = computeWeightedTotal(section, st.sid);
+                    return { st, att, grd };
+                });
+
+                const barData = rows.map((r) => ({ name: r.st.name.split(" ")[0], الدرجة: r.grd.total })).slice(0, 25);
+                const overCount = rows.filter((r) => r.att.pct >= section.absenceLimitPct).length;
+                const okCount = rows.length - overCount;
+                const pieData = [
+                    { name: "منتظمون", value: okCount },
+                    { name: `تجاوزوا ${section.absenceLimitPct}%`, value: overCount },
+                ];
+
+                return (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 16 }}>
+                            <SectionCard>
+                                <div style={{ fontWeight: 800, color: COLORS.ink, marginBottom: 10 }}>أعلى 25 درجة موزونة</div>
+                                <div style={{ width: "100%", height: 240 }}>
+                                    <ResponsiveContainer>
+                                        <BarChart data={barData}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                                            <YAxis tick={{ fontSize: 11 }} />
+                                            <Tooltip contentStyle={{ fontSize: 12, direction: "rtl" }} />
+                                            <Bar dataKey="الدرجة" fill={COLORS.gold} radius={[4, 4, 0, 0]} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </SectionCard>
+
+                            <SectionCard>
+                                <div style={{ fontWeight: 800, color: COLORS.ink, marginBottom: 10 }}>حالة الحضور العامة</div>
+                                <div style={{ width: "100%", height: 200 }}>
+                                    <ResponsiveContainer>
+                                        <PieChart>
+                                            <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={2}>
+                                                {pieData.map((e, i) => (
+                                                    <Cell key={i} fill={i === 0 ? COLORS.good : COLORS.bad} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip contentStyle={{ fontSize: 12, direction: "rtl" }} />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "center", gap: 16, fontSize: 12.5 }}>
+                                    <span style={{ color: COLORS.good }}>● منتظمون ({okCount})</span>
+                                    <span style={{ color: COLORS.bad }}>● متجاوزون ({overCount})</span>
+                                </div>
+                            </SectionCard>
+                        </div>
+
+                        <SectionCard>
+                            <div style={{ fontWeight: 800, color: COLORS.ink, marginBottom: 10 }}>تفصيل شامل للمتدربين</div>
+                            <div style={{ overflowX: "auto" }}>
+                                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                    <thead>
+                                        <tr style={{ borderBottom: `2px solid ${COLORS.line}` }}>
+                                            <th style={thStyle}>الاسم</th>
+                                            <th style={thStyle}>نسبة الغياب</th>
+                                            <th style={thStyle}>الدرجة الموزونة</th>
+                                            <th style={thStyle}>ملاحظات</th>
+                                            <th style={thStyle}></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {rows.map(({ st, att, grd }) => (
+                                            <tr key={st.sid} style={{ borderBottom: `1px solid ${COLORS.line}` }}>
+                                                <td style={{ ...tdStyle, fontWeight: 700 }}>{st.name}</td>
+                                                <td style={tdStyle}>
+                                                    <Badge tone={att.pct >= section.absenceLimitPct ? "bad" : "good"}>{att.pct}%</Badge>
+                                                </td>
+                                                <td style={tdStyle}>
+                                                    <Badge tone="gold">{grd.total}</Badge>
+                                                </td>
+                                                <td style={tdStyle}>
+                                                    {section.notes.filter((n) => n.studentSid === st.sid).length}
+                                                </td>
+                                                <td style={tdStyle}>
+                                                    <button onClick={() => onOpenStudent(st.sid)} style={{ ...ghostBtnStyle, padding: "5px 10px" }}>
+                                                        عرض <ChevronRight size={13} />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </SectionCard>
+                    </div>
+                );
+            }
+
+            function StudentDetailModal({ section, studentSid, onClose }) {
+                const st = section.students.find((s) => s.sid === studentSid);
+                if (!st) return null;
+
+                const att = computeAttendancePct(section, studentSid);
+                const grd = computeWeightedTotal(section, studentSid);
+                const notes = section.notes.filter((n) => n.studentSid === studentSid);
+
+                const radialData = [{ name: "غياب", value: att.pct, fill: att.pct >= section.absenceLimitPct ? COLORS.bad : COLORS.good }];
+                const breakdownData = grd.breakdown.map((b) => ({ name: b.name, الدرجة: b.weighted }));
+
+                return (
+                    <div style={{ position: "fixed", inset: 0, background: "rgba(19,42,38,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 16 }} onClick={onClose}>
+                        <div dir="rtl" onClick={(e) => e.stopPropagation()} style={{ background: COLORS.paper, borderRadius: 18, maxWidth: 760, width: "100%", maxHeight: "88vh", overflowY: "auto", padding: 24, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+                                <div>
+                                    <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.ink }}>{st.name}</div>
+                                    <div style={{ fontSize: 13, color: COLORS.muted }}>الرقم الجامعي: {st.id}</div>
+                                </div>
+                                <IconBtn onClick={onClose} title="إغلاق"><X size={16} /></IconBtn>
+                            </div>
+
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+                                <SectionCard style={{ padding: 14 }}>
+                                    <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink, marginBottom: 6 }}>مؤشر الغياب</div>
+                                    <div style={{ height: 150 }}>
+                                        <ResponsiveContainer>
+                                            <RadialBarChart innerRadius="60%" outerRadius="100%" data={radialData} startAngle={90} endAngle={-270}>
+                                                <RadialBar dataKey="value" cornerRadius={10} background={{ fill: "#EFE9D8" }} max={100} />
+                                            </RadialBarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                    <div style={{ textAlign: "center", marginTop: -95, fontSize: 22, fontWeight: 800, color: att.pct >= section.absenceLimitPct ? COLORS.bad : COLORS.good }}>
+                                        {att.pct}%
+                                    </div>
+                                    <div style={{ textAlign: "center", fontSize: 12, color: COLORS.muted, marginTop: 60 }}>
+                                        {att.absentCount} غياب من {att.total} جلسة
+                                    </div>
+                                    {att.pct >= section.absenceLimitPct && (
+                                        <div style={{ textAlign: "center", marginTop: 6 }}>
+                                            <Badge tone="bad"><AlertTriangle size={12} /> تجاوز الحد المسموح</Badge>
+                                        </div>
+                                    )}
+                                </SectionCard>
+
+                                <SectionCard style={{ padding: 14 }}>
+                                    <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink, marginBottom: 6 }}>توزيع الدرجة الموزونة (الإجمالي {grd.total})</div>
+                                    <div style={{ height: 190 }}>
+                                        <ResponsiveContainer>
+                                            <BarChart data={breakdownData} layout="vertical" margin={{ left: 10 }}>
+                                                <XAxis type="number" tick={{ fontSize: 10 }} />
+                                                <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={70} />
+                                                <Tooltip contentStyle={{ fontSize: 11 }} />
+                                                <Bar dataKey="الدرجة" fill={COLORS.gold} radius={[0, 4, 4, 0]} />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </SectionCard>
+                            </div>
+
+                            <SectionCard style={{ padding: 14 }}>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink, marginBottom: 8 }}>الملاحظات ({notes.length})</div>
+                                <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 180, overflowY: "auto" }}>
+                                    {notes.map((n) => (
+                                        <div key={n.id} style={{ padding: 10, background: "#F9F4E7", borderRadius: 9, fontSize: 13 }}>
+                                            <div style={{ color: COLORS.muted, fontSize: 11, marginBottom: 3 }}>{n.date}</div>
+                                            <div style={{ color: COLORS.ink }}>{n.text}</div>
+                                        </div>
+                                    ))}
+                                    {notes.length === 0 && <div style={{ color: COLORS.muted, fontSize: 13 }}>لا توجد ملاحظات لهذا المتدرب</div>}
+                                </div>
+                            </SectionCard>
+                        </div>
+                    </div>
+                );
+            }
+
+            function SectionManagerModal({ data, setData, activeSectionId, setActiveSectionId, onClose }) {
+                const [newName, setNewName] = useState("");
+
+                const addSection = () => {
+                    if (!newName.trim()) return;
+                    const sec = { ...DEFAULT_SECTION(), name: newName.trim(), students: [] };
+                    setData({ ...data, sections: [...data.sections, sec] });
+                    setActiveSectionId(sec.id);
+                    setNewName("");
+                };
+
+                const removeSection = (id) => {
+                    if (data.sections.length <= 1) return;
+                    const next = data.sections.filter((s) => s.id !== id);
+                    setData({ ...data, sections: next });
+                    if (activeSectionId === id) setActiveSectionId(next[0]?.id || null);
+                };
+
+                const renameSection = (id, name) => {
+                    setData({ ...data, sections: data.sections.map((s) => (s.id === id ? { ...s, name } : s)) });
+                };
+
+                const setLimit = (id, val) => {
+                    const num = parseFloat(val) || 0;
+                    setData({ ...data, sections: data.sections.map((s) => (s.id === id ? { ...s, absenceLimitPct: num } : s)) });
+                };
+
+                return (
+                    <div style={{ position: "fixed", inset: 0, background: "rgba(19,42,38,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 16 }} onClick={onClose}>
+                        <div dir="rtl" onClick={(e) => e.stopPropagation()} style={{ background: COLORS.paper, borderRadius: 18, maxWidth: 520, width: "100%", padding: 24, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+                                <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.ink }}>إدارة الشعب الدراسية</div>
+                                <IconBtn onClick={onClose} title="إغلاق"><X size={16} /></IconBtn>
+                            </div>
+
+                            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18, maxHeight: 300, overflowY: "auto" }}>
+                                {data.sections.map((s) => (
+                                    <SectionCard key={s.id} style={{ padding: 12 }}>
+                                        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+                                            <TextInput value={s.name} onChange={(e) => renameSection(s.id, e.target.value)} />
+                                            <IconBtn onClick={() => removeSection(s.id)} title="حذف الشعبة" tone="danger" small><Trash2 size={14} /></IconBtn>
+                                        </div>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: COLORS.muted }}>
+                                            <span>حد الغياب المسموح (%):</span>
+                                            <input
+                                                type="number"
+                                                value={s.absenceLimitPct}
+                                                onChange={(e) => setLimit(s.id, e.target.value)}
+                                                style={{ width: 60, padding: 4, borderRadius: 6, border: `1px solid ${COLORS.line}`, textAlign: "center" }}
+                                            />
+                                        </div>
+                                    </SectionCard>
+                                ))}
+                            </div>
+
+                            <div style={{ display: "flex", gap: 8 }}>
+                                <TextInput placeholder="اسم الشعبة الجديدة" value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addSection()} />
+                                <button onClick={addSection} style={primaryBtnStyle}><Plus size={15} /> إضافة شعبة</button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            function App() {
+                const { data, setData, status, saving } = useStorage();
+                const [activeSectionId, setActiveSectionId] = useState(null);
+                const [tab, setTab] = useState("students");
+                const [studentDetail, setStudentDetail] = useState(null);
+                const [showSectionMgr, setShowSectionMgr] = useState(false);
+
+                useEffect(() => {
+                    if (data && !activeSectionId && data.sections.length) {
+                        setActiveSectionId(data.sections[0].id);
+                    }
+                }, [data, activeSectionId]);
+
+                const section = useMemo(
+                    () => data?.sections.find((s) => s.id === activeSectionId) || null,
+                    [data, activeSectionId]
+                );
+
+                const updateSection = useCallback((patchFn) => {
+                    if (!data || !section) return;
+                    const nextSections = data.sections.map((s) => (s.id === section.id ? patchFn(s) : s));
+                    setData({ ...data, sections: nextSections });
+                }, [data, section, setData]);
+
+                if (status === "loading" || !data) {
+                    return (
+                        <div style={{ ...shellStyle, alignItems: "center", justifyContent: "center", display: "flex" }}>
+                            <div style={{ color: COLORS.paper, fontFamily: "inherit", fontSize: 15 }}>...جارِ فتح دفتر المتابعة</div>
+                        </div>
+                    );
+                }
+
+                if (status === "error") {
+                    return (
+                        <div style={{ ...shellStyle, alignItems: "center", justifyContent: "center", display: "flex" }}>
+                            <div style={{ color: "#F7E8E6", fontFamily: "inherit" }}>تعذّر تحميل البيانات. حاول تحديث الصفحة.</div>
+                        </div>
+                    );
+                }
+
+                return (
+                    <div dir="rtl" style={shellStyle}>
+                        <TopBar
+                            saving={saving}
+                            section={section}
+                            sections={data.sections}
+                            onSwitch={setActiveSectionId}
+                            onManage={() => setShowSectionMgr(true)}
+                        />
+
+                        {section && (
+                            <div style={{ maxWidth: 1180, margin: "0 auto", padding: "22px 22px 60px" }}>
+                                <SectionHeader section={section} />
+                                <Tabs tab={tab} setTab={setTab} />
+
+                                {tab === "students" && (
+                                    <StudentsTab section={section} updateSection={updateSection} onOpenStudent={setStudentDetail} />
+                                )}
+                                {tab === "attendance" && (
+                                    <AttendanceTab section={section} updateSection={updateSection} />
+                                )}
+                                {tab === "grades" && (
+                                    <GradesTab section={section} updateSection={updateSection} />
+                                )}
+                                {tab === "notes" && (
+                                    <NotesTab section={section} updateSection={updateSection} />
+                                )}
+                                {tab === "reports" && (
+                                    <ReportsTab section={section} onOpenStudent={setStudentDetail} />
+                                )}
+                            </div>
+                        )}
+
+                        {studentDetail && section && (
+                            <StudentDetailModal section={section} studentSid={studentDetail} onClose={() => setStudentDetail(null)} />
+                        )}
+
+                        {showSectionMgr && (
+                            <SectionManagerModal
+                                data={data}
+                                setData={setData}
+                                activeSectionId={activeSectionId}
+                                setActiveSectionId={setActiveSectionId}
+                                onClose={() => setShowSectionMgr(false)}
+                            />
+                        )}
+                    </div>
+                );
+            }
+
+            const shellStyle = {
+                minHeight: "100vh",
+                background: `linear-gradient(180deg, ${COLORS.ink} 0%, ${COLORS.ink2} 220px, ${COLORS.paper} 220px)`,
+                fontFamily: "'Segoe UI', Tahoma, 'Geeza Pro', system-ui, sans-serif",
+            };
+
+            ReactDOM.render(<App />, document.getElementById('root'));
+        };
+    </script>
+</body>
+</html>
