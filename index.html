@@ -8,6 +8,9 @@
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/npm/html-docx-js/dist/html-docx.js" crossorigin></script>
 <style>
   html,body{margin:0;padding:0;}
   * { box-sizing: border-box; }
@@ -93,6 +96,26 @@ function useStorage() {
   return { data, setData: persist, status, saving };
 }
 
+function sortRows(rows, key, dir) {
+  const mult = dir === "desc" ? -1 : 1;
+  return [...rows].sort((a, b) => {
+    const av = a[key], bv = b[key];
+    if (typeof av === "number" && typeof bv === "number") return (av - bv) * mult;
+    return String(av ?? "").localeCompare(String(bv ?? ""), "ar") * mult;
+  });
+}
+
+function SortableTh({ label, active, dir, onClick }) {
+  return (
+    <th style={{ ...thStyle, cursor: "pointer", userSelect: "none" }} onClick={onClick}>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+        {label}
+        <span style={{ fontSize: 10, color: active ? COLORS.gold : COLORS.line }}>{active ? (dir === "asc" ? "▲" : "▼") : "▲▼"}</span>
+      </span>
+    </th>
+  );
+}
+
 function computeAttendancePct(section, studentSid) {
   const total = section.sessions.length;
   if (total === 0) return { pct: 0, absentCount: 0, total: 0 };
@@ -133,8 +156,8 @@ async function parseSpreadsheetFile(file) {
 
 /* ---------------- أيقونات SVG بسيطة (بديل عن مكتبة خارجية) ---------------- */
 
-function Icon({ name, size = 16, color = "currentColor", style }) {
-  const common = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: color, strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round", style };
+function Icon({ name, size = 16, color = "currentColor", style, onClick, title }) {
+  const common = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: color, strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round", style, onClick, role: onClick ? "button" : undefined };
   const P = (d) => <path d={d} />;
   switch (name) {
     case "plus": return <svg {...common}><path d="M12 5v14M5 12h14" /></svg>;
@@ -417,6 +440,13 @@ function StudentsTab({ section, updateSection, onOpenStudent }) {
   const fileInputRef = useRef(null);
   const [importData, setImportData] = useState(null);
   const [importError, setImportError] = useState("");
+  const [sortKey, setSortKey] = useState(null);
+  const [sortDir, setSortDir] = useState("asc");
+
+  const toggleSort = (key) => {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(key); setSortDir("asc"); }
+  };
 
   const addStudent = () => {
     if (!newName.trim()) return;
@@ -492,15 +522,24 @@ function StudentsTab({ section, updateSection, onOpenStudent }) {
         <table>
           <thead>
             <tr style={{ borderBottom: `2px solid ${COLORS.line}` }}>
-              <th style={thStyle}>#</th><th style={thStyle}>الرقم الجامعي</th><th style={thStyle}>الاسم</th>
-              <th style={thStyle}>نسبة الغياب</th><th style={thStyle}>الدرجة الموزونة</th><th style={thStyle}></th>
+              <th style={thStyle}>#</th>
+              <SortableTh label="الرقم الجامعي" active={sortKey === "id"} dir={sortDir} onClick={() => toggleSort("id")} />
+              <SortableTh label="الاسم" active={sortKey === "name"} dir={sortDir} onClick={() => toggleSort("name")} />
+              <SortableTh label="نسبة الغياب" active={sortKey === "attPct"} dir={sortDir} onClick={() => toggleSort("attPct")} />
+              <SortableTh label="الدرجة الموزونة" active={sortKey === "grdTotal"} dir={sortDir} onClick={() => toggleSort("grdTotal")} />
+              <th style={thStyle}></th>
             </tr>
           </thead>
           <tbody>
-            {section.students.map((st, idx) => {
-              const att = computeAttendancePct(section, st.sid);
-              const grd = computeWeightedTotal(section, st.sid);
-              const over = att.pct >= section.absenceLimitPct;
+            {(() => {
+              const enriched = section.students.map((st) => {
+                const att = computeAttendancePct(section, st.sid);
+                const grd = computeWeightedTotal(section, st.sid);
+                return { ...st, attPct: att.pct, attOver: att.pct >= section.absenceLimitPct, grdTotal: grd.total, grdWeightSum: grd.weightSum };
+              });
+              const rows = sortKey ? sortRows(enriched, sortKey, sortDir) : enriched;
+              return rows.map((st, idx) => {
+              const over = st.attOver;
               const editing = editingSid === st.sid;
               return (
                 <tr key={st.sid} style={{ borderBottom: `1px solid ${COLORS.line}` }}>
@@ -509,8 +548,8 @@ function StudentsTab({ section, updateSection, onOpenStudent }) {
                   <td style={{ ...tdStyle, fontWeight: 700, cursor: "pointer", color: COLORS.ink2 }} onClick={() => !editing && onOpenStudent(st.sid)}>
                     {editing ? <TextInput value={editVals.name} onChange={(e) => setEditVals((v) => ({ ...v, name: e.target.value }))} /> : st.name}
                   </td>
-                  <td style={tdStyle}><Badge tone={over ? "bad" : "good"}>{att.pct}% {over && <Icon name="alert" size={12} />}</Badge></td>
-                  <td style={tdStyle}><Badge tone="gold">{grd.total} / {grd.weightSum}</Badge></td>
+                  <td style={tdStyle}><Badge tone={over ? "bad" : "good"}>{st.attPct}% {over && <Icon name="alert" size={12} />}</Badge></td>
+                  <td style={tdStyle}><Badge tone="gold">{st.grdTotal} / {st.grdWeightSum}</Badge></td>
                   <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>
                     <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
                       {editing ? <IconBtn onClick={saveEdit} title="حفظ" small><Icon name="check" size={15} /></IconBtn> : <IconBtn onClick={() => startEdit(st)} title="تعديل" small><Icon name="pencil" size={14} /></IconBtn>}
@@ -519,7 +558,8 @@ function StudentsTab({ section, updateSection, onOpenStudent }) {
                   </td>
                 </tr>
               );
-            })}
+              });
+            })()}
             {section.students.length === 0 && <tr><td colSpan={6} style={{ ...tdStyle, textAlign: "center", color: COLORS.muted, padding: 24 }}>لا يوجد متدربون بعد</td></tr>}
           </tbody>
         </table>
@@ -530,6 +570,172 @@ function StudentsTab({ section, updateSection, onOpenStudent }) {
           fileName={importData.fileName} headers={importData.headers} rows={importData.rows}
           onClose={() => setImportData(null)}
           onImportStudents={(parsed) => { updateSection((s) => ({ ...s, students: [...s.students, ...parsed] })); setImportData(null); }}
+        />
+      )}
+    </SectionCard>
+  );
+}
+
+/* ---------------- Contacts Tab (البريد والجوال) ---------------- */
+
+function ContactImportModal({ fileName, headers, rows, students, onClose, onApply }) {
+  const [idCol, setIdCol] = useState(() => headers.find((h) => h.includes("رقم") && h.includes("طالب")) || headers.find((h) => h.includes("جامعي")) || "");
+  const [nameCol, setNameCol] = useState(() => headers.find((h) => h.includes("اسم")) || "");
+  const [emailCol, setEmailCol] = useState(() => headers.find((h) => h.toLowerCase().includes("email") || h.includes("بريد")) || "");
+  const [phoneCol, setPhoneCol] = useState(() => headers.find((h) => h.includes("جوال") || h.includes("هاتف") || h.toLowerCase().includes("phone") || h.toLowerCase().includes("mobile")) || "");
+
+  const idIdx = headers.indexOf(idCol), nameIdx = headers.indexOf(nameCol), emailIdx = headers.indexOf(emailCol), phoneIdx = headers.indexOf(phoneCol);
+
+  const apply = () => {
+    const updates = rows.map((r) => ({
+      id: idIdx !== -1 ? String(r[idIdx] ?? "").trim() : "",
+      name: nameIdx !== -1 ? String(r[nameIdx] ?? "").trim() : "",
+      email: emailIdx !== -1 ? String(r[emailIdx] ?? "").trim() : "",
+      phone: phoneIdx !== -1 ? String(r[phoneIdx] ?? "").trim() : "",
+    })).filter((u) => u.id || u.name);
+    onApply(updates);
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(19,42,38,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 16 }} onClick={onClose}>
+      <div dir="rtl" onClick={(e) => e.stopPropagation()} style={{ background: COLORS.paper, borderRadius: 18, maxWidth: 640, width: "100%", maxHeight: "88vh", overflowY: "auto", padding: 24, border: `1px solid ${COLORS.line}` }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.ink }}>استيراد بيانات التواصل</div>
+            <div style={{ fontSize: 12, color: COLORS.muted, marginTop: 2 }}>{fileName} — {rows.length} صف</div>
+          </div>
+          <IconBtn onClick={onClose} title="إغلاق"><Icon name="x" size={16} /></IconBtn>
+        </div>
+        <div style={{ fontSize: 12.5, color: COLORS.muted, margin: "10px 0 14px" }}>
+          حدّد عمود المطابقة (الرقم الجامعي أو الاسم) وعمودَي البريد والجوال. سيتم تحديث بيانات المتدربين الحاليين المطابقين تلقائيًا، وإضافة أي متدرب جديد غير موجود.
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 4 }}>عمود الرقم الجامعي (للمطابقة)</div>
+            <select value={idCol} onChange={(e) => setIdCol(e.target.value)} style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: `1px solid ${COLORS.line}` }}>
+              <option value="">— بدون —</option>
+              {headers.map((h, i) => <option key={`${h}_${i}`} value={h}>{h}</option>)}
+            </select>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 4 }}>عمود الاسم (للمطابقة)</div>
+            <select value={nameCol} onChange={(e) => setNameCol(e.target.value)} style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: `1px solid ${COLORS.line}` }}>
+              <option value="">— بدون —</option>
+              {headers.map((h, i) => <option key={`${h}_${i}`} value={h}>{h}</option>)}
+            </select>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 4 }}>عمود البريد الإلكتروني</div>
+            <select value={emailCol} onChange={(e) => setEmailCol(e.target.value)} style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: `1px solid ${COLORS.line}` }}>
+              <option value="">— بدون —</option>
+              {headers.map((h, i) => <option key={`${h}_${i}`} value={h}>{h}</option>)}
+            </select>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 4 }}>عمود الجوال</div>
+            <select value={phoneCol} onChange={(e) => setPhoneCol(e.target.value)} style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: `1px solid ${COLORS.line}` }}>
+              <option value="">— بدون —</option>
+              {headers.map((h, i) => <option key={`${h}_${i}`} value={h}>{h}</option>)}
+            </select>
+          </div>
+        </div>
+        <button onClick={apply} disabled={!idCol && !nameCol} style={{ ...primaryBtnStyle, opacity: (idCol || nameCol) ? 1 : 0.5 }}>
+          <Icon name="check" size={15} /> تطبيق الاستيراد
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ContactsTab({ section, updateSection }) {
+  const fileInputRef = useRef(null);
+  const [importData, setImportData] = useState(null);
+  const [importError, setImportError] = useState("");
+  const [sortKey, setSortKey] = useState(null);
+  const [sortDir, setSortDir] = useState("asc");
+  const toggleSort = (key) => {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(key); setSortDir("asc"); }
+  };
+
+  const setField = (sid, field, value) => updateSection((s) => ({ ...s, students: s.students.map((st) => st.sid === sid ? { ...st, [field]: value } : st) }));
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportError("");
+    try {
+      const { headers, rows } = await parseSpreadsheetFile(file);
+      if (!headers.length) { setImportError("تعذّر العثور على أعمدة في الملف."); return; }
+      setImportData({ fileName: file.name, headers, rows });
+    } catch (err) {
+      setImportError("تعذّرت قراءة الملف. تأكد أنه بصيغة Excel أو CSV صحيحة.");
+    } finally {
+      e.target.value = "";
+    }
+  };
+
+  const applyContactImport = (updates) => {
+    updateSection((s) => {
+      let students = [...s.students];
+      updates.forEach((u) => {
+        let idx = -1;
+        if (u.id) idx = students.findIndex((st) => st.id === u.id);
+        if (idx === -1 && u.name) idx = students.findIndex((st) => st.name.trim() === u.name.trim());
+        if (idx !== -1) {
+          students[idx] = { ...students[idx], email: u.email || students[idx].email || "", phone: u.phone || students[idx].phone || "" };
+        } else if (u.name) {
+          students.push({ sid: uid("stu"), id: u.id || "-", name: u.name, email: u.email || "", phone: u.phone || "" });
+        }
+      });
+      return { ...s, students };
+    });
+    setImportData(null);
+  };
+
+  const enriched = section.students.map((st) => ({ ...st, email: st.email || "", phone: st.phone || "" }));
+  const rows = sortKey ? sortRows(enriched, sortKey, sortDir) : enriched;
+
+  return (
+    <SectionCard>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
+        <div style={{ fontWeight: 800, color: COLORS.ink, fontSize: 16 }}>قائمة التواصل ({section.students.length})</div>
+        <div>
+          <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={handleFileChange} />
+          <button onClick={() => fileInputRef.current?.click()} style={ghostBtnStyle}><Icon name="upload" size={15} /> استيراد من ملف Excel / CSV</button>
+        </div>
+      </div>
+
+      {importError && <div style={{ marginBottom: 14, padding: "10px 14px", background: "#F7E8E6", color: COLORS.bad, borderRadius: 10, fontSize: 13 }}>{importError}</div>}
+
+      <div style={{ overflowX: "auto" }}>
+        <table>
+          <thead>
+            <tr style={{ borderBottom: `2px solid ${COLORS.line}` }}>
+              <SortableTh label="الاسم" active={sortKey === "name"} dir={sortDir} onClick={() => toggleSort("name")} />
+              <SortableTh label="الرقم الجامعي" active={sortKey === "id"} dir={sortDir} onClick={() => toggleSort("id")} />
+              <SortableTh label="البريد الإلكتروني" active={sortKey === "email"} dir={sortDir} onClick={() => toggleSort("email")} />
+              <SortableTh label="الجوال" active={sortKey === "phone"} dir={sortDir} onClick={() => toggleSort("phone")} />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((st) => (
+              <tr key={st.sid} style={{ borderBottom: `1px solid ${COLORS.line}` }}>
+                <td style={{ ...tdStyle, fontWeight: 700 }}>{st.name}</td>
+                <td style={tdStyle}>{st.id}</td>
+                <td style={tdStyle}><TextInput type="email" placeholder="example@mail.com" value={st.email} onChange={(e) => setField(st.sid, "email", e.target.value)} style={{ minWidth: 180 }} /></td>
+                <td style={tdStyle}><TextInput type="tel" placeholder="05xxxxxxxx" value={st.phone} onChange={(e) => setField(st.sid, "phone", e.target.value)} style={{ minWidth: 140 }} /></td>
+              </tr>
+            ))}
+            {rows.length === 0 && <tr><td colSpan={4} style={{ ...tdStyle, textAlign: "center", color: COLORS.muted, padding: 24 }}>لا يوجد متدربون بعد</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      {importData && (
+        <ContactImportModal
+          fileName={importData.fileName} headers={importData.headers} rows={importData.rows} students={section.students}
+          onClose={() => setImportData(null)} onApply={applyContactImport}
         />
       )}
     </SectionCard>
@@ -623,6 +829,12 @@ function AttendanceTab({ section, updateSection }) {
 
 function GradesTab({ section, updateSection }) {
   const [newItem, setNewItem] = useState({ name: "", weight: "", max: "" });
+  const [sortKey, setSortKey] = useState(null);
+  const [sortDir, setSortDir] = useState("asc");
+  const toggleSort = (key) => {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(key); setSortDir("asc"); }
+  };
   const weightTotal = section.gradeItems.reduce((a, g) => a + g.weight, 0);
 
   const addItem = () => {
@@ -670,13 +882,23 @@ function GradesTab({ section, updateSection }) {
           <table>
             <thead>
               <tr style={{ borderBottom: `2px solid ${COLORS.line}` }}>
-                <th style={thStyle}>الاسم</th>
-                {section.gradeItems.map((gi) => (<th key={gi.id} style={thStyle}>{gi.name}<div style={{ fontWeight: 400, fontSize: 10.5, color: COLORS.muted }}>من {gi.max} ({gi.weight}%)</div></th>))}
-                <th style={thStyle}>الإجمالي الموزون</th>
+                <SortableTh label="الاسم" active={sortKey === "name"} dir={sortDir} onClick={() => toggleSort("name")} />
+                {section.gradeItems.map((gi) => (
+                  <SortableTh key={gi.id} label={`${gi.name} (من ${gi.max})`} active={sortKey === gi.id} dir={sortDir} onClick={() => toggleSort(gi.id)} />
+                ))}
+                <SortableTh label="الإجمالي الموزون" active={sortKey === "grdTotal"} dir={sortDir} onClick={() => toggleSort("grdTotal")} />
               </tr>
             </thead>
             <tbody>
-              {section.students.map((st) => {
+              {(() => {
+                const enriched = section.students.map((st) => {
+                  const grd = computeWeightedTotal(section, st.sid);
+                  const row = { ...st, grdTotal: grd.total };
+                  section.gradeItems.forEach((gi) => { row[gi.id] = section.grades[`${gi.id}:${st.sid}`] ?? -1; });
+                  return row;
+                });
+                const rows = sortKey ? sortRows(enriched, sortKey, sortDir) : enriched;
+                return rows.map((st) => {
                 const grd = computeWeightedTotal(section, st.sid);
                 return (
                   <tr key={st.sid} style={{ borderBottom: `1px solid ${COLORS.line}` }}>
@@ -689,7 +911,8 @@ function GradesTab({ section, updateSection }) {
                     <td style={tdStyle}><Badge tone="gold">{grd.total}</Badge></td>
                   </tr>
                 );
-              })}
+                });
+              })()}
             </tbody>
           </table>
         </div>
@@ -931,7 +1154,149 @@ function SectionManagerModal({ data, setData, activeSectionId, setActiveSectionI
 
 /* ---------------- Top bar / header / tabs ---------------- */
 
-function TopBar({ saving, section, sections, onSwitch, onManage, onExport, onImportClick }) {
+function GuideModal({ onClose }) {
+  const Sec = ({ title, children }) => (
+    <div style={{ marginBottom: 22 }}>
+      <div style={{ fontSize: 16, fontWeight: 800, color: COLORS.ink, marginBottom: 8, paddingBottom: 6, borderBottom: `2px solid ${COLORS.goldSoft}` }}>{title}</div>
+      <div style={{ fontSize: 13.5, color: COLORS.ink, lineHeight: 1.9 }}>{children}</div>
+    </div>
+  );
+  const Sub = ({ title }) => <div style={{ fontSize: 14, fontWeight: 700, color: "#8A6420", margin: "10px 0 6px" }}>{title}</div>;
+  const Ol = ({ items }) => (
+    <ol style={{ margin: "6px 0", paddingRight: 22 }}>
+      {items.map((t, i) => <li key={i} style={{ marginBottom: 5 }}>{t}</li>)}
+    </ol>
+  );
+  const Ul = ({ items }) => (
+    <ul style={{ margin: "6px 0", paddingRight: 22 }}>
+      {items.map((t, i) => <li key={i} style={{ marginBottom: 5 }}>{t}</li>)}
+    </ul>
+  );
+  const Note = ({ label = "مهم", children }) => (
+    <div style={{ background: "#F9F4E7", border: `1px dashed ${COLORS.goldSoft}`, borderRadius: 10, padding: 12, margin: "10px 0" }}>
+      <div style={{ fontWeight: 700, color: "#8A6420", marginBottom: 4 }}>{label}:</div>
+      <div>{children}</div>
+    </div>
+  );
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(19,42,38,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 16 }} onClick={onClose}>
+      <div dir="rtl" onClick={(e) => e.stopPropagation()} style={{ background: COLORS.paper, borderRadius: 18, maxWidth: 820, width: "100%", maxHeight: "90vh", overflowY: "auto", padding: 26, border: `1px solid ${COLORS.line}` }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+          <div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.ink }}>📒 دليل استخدام دفتر المتابعة</div>
+            <div style={{ fontSize: 12, color: COLORS.muted, marginTop: 2 }}>دليل شامل لكل ميزات التطبيق</div>
+          </div>
+          <IconBtn onClick={onClose} title="إغلاق"><Icon name="x" size={16} /></IconBtn>
+        </div>
+        <div style={{ height: 1, background: COLORS.line, margin: "14px 0 18px" }} />
+
+        <Sec title="١. نظرة عامة على التطبيق">
+          <p>«دفتر المتابعة» تطبيق ويب مخصص لمعلمي وأساتذة الشعب التدريبية والدراسية، يساعدك على تنظيم كل ما يخص طلابك في مكان واحد: قائمة المتدربين، تسجيل الحضور والغياب جلسة بجلسة، رصد الدرجات وحساب المجموع الموزون تلقائيًا، تدوين ملاحظات فردية عن كل متدرب، والاطلاع على تقارير ورسوم بيانية توضح الأداء العام للشعبة.</p>
+          <p>التطبيق ملف واحد بصيغة HTML يعمل مباشرة داخل المتصفح دون الحاجة لتثبيت أي برنامج.</p>
+          <Note>جميع بياناتك تُحفظ محليًا داخل متصفح جهازك فقط (localStorage) ولا تُرسل لأي خادم. راجع قسم «النسخ الاحتياطي» أدناه بعناية.</Note>
+        </Sec>
+
+        <Sec title="٢. التشغيل لأول مرة">
+          <Ol items={[
+            "افتح ملف trainee_tracker.html بالنقر المزدوج عليه.",
+            "عند أول تشغيل سيحمّل التطبيق بعض المكتبات البرمجية عبر الإنترنت (مرة واحدة عادة).",
+            "ستظهر شعبة «بدون اسم» — اضغط «إدارة الشعب» وسمِّها باسم المادة والفصل.",
+            "ابدأ بإضافة المتدربين يدويًا، أو بالاستيراد الجماعي، أو برفع ملف Excel/CSV.",
+          ]} />
+        </Sec>
+
+        <Sec title="٣. تبويب «المتدربون»">
+          <Sub title="أ) الإضافة اليدوية" />
+          <p>أدخل الرقم الجامعي واسم المتدرب ثم اضغط «إضافة».</p>
+          <Sub title="ب) الاستيراد الجماعي (نص)" />
+          <p>الصق قائمة الطلاب سطرًا لكل طالب (الرقم الجامعي ثم الاسم) واضغط «استيراد».</p>
+          <Sub title="ج) الاستيراد من ملف Excel أو CSV" />
+          <Ol items={[
+            "اضغط «استيراد من ملف Excel / CSV» واختر الملف (.xlsx / .xls / .csv).",
+            "سيستخرج التطبيق أسماء كل الأعمدة تلقائيًا ويعرضها لك.",
+            "حدّد الأعمدة التي تريد عرضها في المعاينة (اختياري).",
+            "اختر عمود «الرقم الجامعي» وعمود «اسم الطالب» من القائمتين.",
+            "اضغط «استيراد كمتدربين» لإضافتهم مباشرة (يتجاهل التكرار تلقائيًا).",
+          ]} />
+        </Sec>
+
+        <Sec title="٤. تبويب «الحضور»">
+          <Ol items={[
+            "اختر تاريخ الجلسة وأدخل اسمًا لها (اختياري) ثم اضغط زر الإضافة.",
+            "اختر الجلسة من القائمة لعرضها.",
+            "أمام كل متدرب اضغط «حاضر» أو «غائب» أو «مستأذن».",
+          ]} />
+          <p>تُحسب نسبة الغياب تلقائيًا، ويظهر تنبيه أحمر عند تجاوز الحد المسموح (قابل للتعديل من «إدارة الشعب»).</p>
+        </Sec>
+
+        <Sec title="٥. تبويب «الدرجات»">
+          <p>أضف بنود التقييم (الاسم، الوزن %، الدرجة القصوى) ويجب أن يبلغ مجموع الأوزان 100%. أدخل درجة كل متدرب في كل بند، ويُحسب «الإجمالي الموزون» تلقائيًا بالمعادلة: (الدرجة ÷ الدرجة القصوى) × وزن البند، مجموعة على كل البنود.</p>
+        </Sec>
+
+        <Sec title="٦. تبويب «الملاحظات»">
+          <p>دوّن ملاحظات حرة عن أي متدرب بتاريخ محدد لمتابعة سلوكه أو أدائه، وتظهر كل ملاحظاته أيضًا داخل بطاقته الشخصية.</p>
+        </Sec>
+
+        <Sec title="٧. تبويب «التقارير»">
+          <Ul items={[
+            "رسم بياني بالدرجة الموزونة لكل متدرب.",
+            "رسم دائري يقارن المنتظمين بمن تجاوزوا حد الغياب.",
+            "جدول تفصيلي شامل لكل متدرب مع رابط سريع لبطاقته.",
+          ]} />
+        </Sec>
+
+        <Sec title="٨. بطاقة تفاصيل المتدرب">
+          <p>تُفتح بالنقر على اسم أي متدرب، وتعرض مؤشر الغياب الدائري، توزيع الدرجات، وكل ملاحظاته في مكان واحد.</p>
+        </Sec>
+
+        <Sec title="٩. إدارة عدّة شعب">
+          <Ul items={[
+            "اضغط «إدارة الشعب» لإضافة شعبة جديدة أو تعديل اسم/حد غياب أي شعبة.",
+            "بيانات كل شعبة منفصلة تمامًا عن الأخرى.",
+            "لا يمكن حذف آخر شعبة متبقية.",
+          ]} />
+        </Sec>
+
+        <Sec title="١٠. النسخ الاحتياطي (مهم جدًا)">
+          <p>بما أن البيانات محفوظة في متصفح جهازك فقط، قد تُفقد عند مسح بيانات التصفح، تغيير الجهاز، أو تعطّله.</p>
+          <Ol items={[
+            "«تصدير نسخة احتياطية»: يُنزّل كل بيانات كل الشعب كملف JSON — احتفظ به في مكان آمن.",
+            "«استيراد نسخة احتياطية»: يستعيد البيانات من ملف مُصدَّر سابقًا.",
+          ]} />
+          <Note label="تذكير">يُنصح بأخذ نسخة احتياطية أسبوعيًا على الأقل، وخصوصًا بعد أي جلسة حضور أو رصد درجات مهمة.</Note>
+        </Sec>
+
+        <Sec title="١١. الخصوصية ومشاركة التطبيق">
+          <p>يمكنك مشاركة ملف التطبيق مع أي زميل ليستخدمه بشكل مستقل تمامًا — بيانات كل شخص محفوظة في متصفحه فقط ولا تظهر لغيره حتى لو استخدم الجميع نفس نسخة الملف.</p>
+        </Sec>
+
+        <Sec title="١٢. استكشاف الأخطاء">
+          <Sub title="شاشة بيضاء عند الفتح" />
+          <Ul items={[
+            "تأكد من اتصالك بالإنترنت عند أول تشغيل.",
+            "جرّب متصفحًا آخر (يُفضَّل Chrome محدَّث).",
+            "افتح أدوات المطوّر (F12) وتبويب Console لمعرفة الخطأ.",
+          ]} />
+          <Sub title="فقدان بيانات شعبة" />
+          <Ul items={["تحقق أولًا من القائمة المنسدلة أعلى الصفحة.", "استرجع آخر نسخة احتياطية محفوظة لديك."]} />
+        </Sec>
+
+        <Sec title="١٣. أسئلة شائعة">
+          <p><b>هل يحتاج التطبيق اتصالًا دائمًا بالإنترنت؟</b><br />لا، فقط عند أول تشغيل.</p>
+          <p><b>هل يمكن الوصول لبياناتي من جهاز آخر؟</b><br />لا تلقائيًا، انقلها عبر تصدير/استيراد نسخة احتياطية.</p>
+          <p><b>هل بياناتي مرئية لأي طرف آخر؟</b><br />لا، تبقى محصورة داخل متصفحك فقط.</p>
+        </Sec>
+
+        <div style={{ textAlign: "center", fontSize: 12, color: COLORS.muted, marginTop: 10, borderTop: `1px solid ${COLORS.line}`, paddingTop: 12 }}>
+          إعداد: كليب بن أحمد بن ضيف الله الزهراني
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TopBar({ saving, section, sections, onSwitch, onManage, onExport, onImportClick, onOpenGuide, onOpenReportExport }) {
   return (
     <div style={{ maxWidth: 1180, margin: "0 auto", padding: "26px 22px 0" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14 }}>
@@ -953,6 +1318,12 @@ function TopBar({ saving, section, sections, onSwitch, onManage, onExport, onImp
           </select>
           <button onClick={onManage} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 10, border: `1px solid ${COLORS.goldSoft}`, background: "transparent", color: COLORS.goldSoft, fontSize: 13.5, cursor: "pointer", fontWeight: 700 }}>
             <Icon name="settings" size={16} /> إدارة الشعب
+          </button>
+          <button onClick={onOpenGuide} title="دليل استخدام التطبيق" style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 10, border: `1px solid ${COLORS.goldSoft}`, background: "transparent", color: COLORS.goldSoft, fontSize: 13.5, cursor: "pointer", fontWeight: 700 }}>
+            <Icon name="clipboard" size={16} /> دليل الاستخدام
+          </button>
+          <button onClick={onOpenReportExport} title="تصدير تقرير PDF أو Word" style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 10, border: `1px solid ${COLORS.goldSoft}`, background: "transparent", color: COLORS.goldSoft, fontSize: 13.5, cursor: "pointer", fontWeight: 700 }}>
+            <Icon name="note" size={16} /> تصدير تقرير
           </button>
           <button onClick={onExport} title="تنزيل نسخة احتياطية بصيغة JSON" style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 10, border: `1px solid ${COLORS.goldSoft}`, background: COLORS.gold, color: COLORS.ink, fontSize: 13.5, cursor: "pointer", fontWeight: 800 }}>
             <Icon name="download" size={16} /> تصدير نسخة احتياطية
@@ -1003,6 +1374,7 @@ function Tabs({ tab, setTab }) {
     { id: "attendance", label: "الحضور", icon: "calendar" },
     { id: "grades", label: "الدرجات", icon: "award" },
     { id: "notes", label: "الملاحظات", icon: "note" },
+    { id: "contacts", label: "التواصل", icon: "userPlus" },
     { id: "reports", label: "التقارير", icon: "chart" },
   ];
   return (
@@ -1038,12 +1410,174 @@ function BackupBanner({ onExport }) {
   );
 }
 
+function esc(s) {
+  return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function buildExportHTML(section, sel) {
+  const styles = "body{font-family:Arial,Tahoma,sans-serif;direction:rtl;text-align:right;color:#132A26;} h1{font-size:22px;margin-bottom:4px;} h2{font-size:16px;margin-top:26px;border-bottom:2px solid #DED2B3;padding-bottom:4px;} table{border-collapse:collapse;width:100%;margin-top:8px;} th,td{border:1px solid #DED2B3;padding:6px 8px;font-size:12px;text-align:right;} th{background:#F4E7C9;} p{font-size:12.5px;color:#7A7161;}";
+  let body = `<h1>${esc(section.name || "شعبة بدون اسم")}</h1><p>تاريخ التصدير: ${new Date().toLocaleDateString("ar")}</p>`;
+
+  if (sel.students) {
+    body += "<h2>المتدربون</h2><table><tr><th>#</th><th>الرقم الجامعي</th><th>الاسم</th><th>نسبة الغياب</th><th>الدرجة الموزونة</th></tr>";
+    section.students.forEach((st, i) => {
+      const att = computeAttendancePct(section, st.sid);
+      const grd = computeWeightedTotal(section, st.sid);
+      body += `<tr><td>${i + 1}</td><td>${esc(st.id)}</td><td>${esc(st.name)}</td><td>${att.pct}%</td><td>${grd.total}</td></tr>`;
+    });
+    body += "</table>";
+  }
+
+  if (sel.attendance) {
+    body += "<h2>الحضور</h2>";
+    if (section.sessions.length === 0) body += "<p>لا توجد جلسات مسجّلة.</p>";
+    else {
+      body += "<table><tr><th>الاسم</th>" + section.sessions.map((s) => `<th>${esc(s.label)}<br/>${esc(s.date)}</th>`).join("") + "</tr>";
+      section.students.forEach((st) => {
+        body += `<tr><td>${esc(st.name)}</td>` + section.sessions.map((s) => `<td>${esc(section.attendance[`${s.id}:${st.sid}`] || "-")}</td>`).join("") + "</tr>";
+      });
+      body += "</table>";
+    }
+  }
+
+  if (sel.grades) {
+    body += "<h2>الدرجات</h2><table><tr><th>الاسم</th>" + section.gradeItems.map((gi) => `<th>${esc(gi.name)} (${gi.weight}%)</th>`).join("") + "<th>الإجمالي الموزون</th></tr>";
+    section.students.forEach((st) => {
+      const grd = computeWeightedTotal(section, st.sid);
+      body += `<tr><td>${esc(st.name)}</td>` + section.gradeItems.map((gi) => `<td>${section.grades[`${gi.id}:${st.sid}`] ?? ""}</td>`).join("") + `<td>${grd.total}</td></tr>`;
+    });
+    body += "</table>";
+  }
+
+  if (sel.notes) {
+    body += "<h2>الملاحظات</h2>";
+    if (section.notes.length === 0) body += "<p>لا توجد ملاحظات.</p>";
+    else {
+      body += "<table><tr><th>الاسم</th><th>التاريخ</th><th>الملاحظة</th></tr>";
+      section.notes.forEach((n) => {
+        const st = section.students.find((s) => s.sid === n.studentSid);
+        body += `<tr><td>${esc(st ? st.name : "—")}</td><td>${esc(n.date)}</td><td>${esc(n.text)}</td></tr>`;
+      });
+      body += "</table>";
+    }
+  }
+
+  if (sel.contacts) {
+    body += "<h2>التواصل</h2><table><tr><th>الاسم</th><th>الرقم الجامعي</th><th>البريد الإلكتروني</th><th>الجوال</th></tr>";
+    section.students.forEach((st) => {
+      body += `<tr><td>${esc(st.name)}</td><td>${esc(st.id)}</td><td>${esc(st.email || "-")}</td><td>${esc(st.phone || "-")}</td></tr>`;
+    });
+    body += "</table>";
+  }
+
+  if (sel.reports) {
+    body += "<h2>تقرير ملخص</h2><table><tr><th>الاسم</th><th>نسبة الغياب</th><th>الدرجة الموزونة</th><th>عدد الملاحظات</th></tr>";
+    section.students.forEach((st) => {
+      const att = computeAttendancePct(section, st.sid);
+      const grd = computeWeightedTotal(section, st.sid);
+      const notesCount = section.notes.filter((n) => n.studentSid === st.sid).length;
+      body += `<tr><td>${esc(st.name)}</td><td>${att.pct}%</td><td>${grd.total}</td><td>${notesCount}</td></tr>`;
+    });
+    body += "</table>";
+  }
+
+  return `<!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8"><style>${styles}</style></head><body>${body}</body></html>`;
+}
+
+function ExportModal({ section, onClose }) {
+  const [sel, setSel] = useState({ students: true, attendance: true, grades: true, notes: true, contacts: true, reports: true });
+  const [busy, setBusy] = useState(false);
+  const toggle = (k) => setSel((v) => ({ ...v, [k]: !v[k] }));
+  const setAll = (val) => setSel({ students: val, attendance: val, grades: val, notes: val, contacts: val, reports: val });
+  const anySelected = Object.values(sel).some(Boolean);
+  const fileBase = (section.name || "تقرير_الشعبة").replace(/[\\/:*?"<>|]/g, "-");
+
+  const items = [
+    { key: "students", label: "المتدربون" },
+    { key: "attendance", label: "الحضور" },
+    { key: "grades", label: "الدرجات" },
+    { key: "notes", label: "الملاحظات" },
+    { key: "contacts", label: "التواصل" },
+    { key: "reports", label: "التقارير" },
+  ];
+
+  const doExportWord = () => {
+    if (!window.htmlDocx) { alert("تعذّر تحميل مكتبة تصدير Word، تحقق من اتصالك بالإنترنت وحاول مجددًا."); return; }
+    const html = buildExportHTML(section, sel);
+    const blob = window.htmlDocx.asBlob(html);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `${fileBase}.doc`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const doExportPDF = async () => {
+    if (!window.jspdf || !window.html2canvas) { alert("تعذّر تحميل مكتبة تصدير PDF، تحقق من اتصالك بالإنترنت وحاول مجددًا."); return; }
+    setBusy(true);
+    const html = buildExportHTML(section, sel);
+    const container = document.createElement("div");
+    container.style.position = "fixed"; container.style.left = "-9999px"; container.style.top = "0";
+    container.style.width = "800px"; container.style.background = "#fff";
+    container.innerHTML = html;
+    document.body.appendChild(container);
+    try {
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ unit: "pt", format: "a4" });
+      await pdf.html(container, {
+        x: 20, y: 20, width: 555, windowWidth: 800,
+        callback: (doc) => { doc.save(`${fileBase}.pdf`); container.remove(); setBusy(false); },
+      });
+    } catch (e) {
+      container.remove(); setBusy(false);
+      alert("حدث خطأ أثناء إنشاء ملف PDF.");
+    }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(19,42,38,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 16 }} onClick={onClose}>
+      <div dir="rtl" onClick={(e) => e.stopPropagation()} style={{ background: COLORS.paper, borderRadius: 18, maxWidth: 520, width: "100%", maxHeight: "85vh", overflowY: "auto", padding: 24, border: `1px solid ${COLORS.line}` }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.ink }}>تصدير تقرير</div>
+          <IconBtn onClick={onClose} title="إغلاق"><Icon name="x" size={16} /></IconBtn>
+        </div>
+        <div style={{ fontSize: 12.5, color: COLORS.muted, margin: "8px 0 14px" }}>اختر الأقسام التي تريد تضمينها في الملف المُصدَّر:</div>
+
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <button onClick={() => setAll(true)} style={{ ...ghostBtnStyle, padding: "5px 12px", fontSize: 12 }}>تحديد الكل</button>
+          <button onClick={() => setAll(false)} style={{ ...ghostBtnStyle, padding: "5px 12px", fontSize: 12 }}>إلغاء التحديد</button>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 18 }}>
+          {items.map((it) => (
+            <label key={it.key} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderRadius: 9, border: `1px solid ${sel[it.key] ? COLORS.gold : COLORS.line}`, background: sel[it.key] ? "#F4E7C9" : COLORS.paperCard, cursor: "pointer" }}>
+              <input type="checkbox" checked={sel[it.key]} onChange={() => toggle(it.key)} style={{ accentColor: COLORS.gold }} />
+              <span style={{ fontSize: 13.5, fontWeight: 700, color: COLORS.ink }}>{it.label}</span>
+            </label>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button onClick={doExportWord} disabled={!anySelected} style={{ ...primaryBtnStyle, opacity: anySelected ? 1 : 0.5 }}>
+            <Icon name="download" size={15} /> تصدير Word
+          </button>
+          <button onClick={doExportPDF} disabled={!anySelected || busy} style={{ ...ghostBtnStyle, opacity: (anySelected && !busy) ? 1 : 0.5 }}>
+            <Icon name="download" size={15} /> {busy ? "جارِ التصدير..." : "تصدير PDF"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const { data, setData, status, saving } = useStorage();
   const [activeSectionId, setActiveSectionId] = useState(null);
   const [tab, setTab] = useState("students");
   const [studentDetail, setStudentDetail] = useState(null);
   const [showSectionMgr, setShowSectionMgr] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
+  const [showExport, setShowExport] = useState(false);
 
   useEffect(() => {
     if (data && !activeSectionId && data.sections.length) setActiveSectionId(data.sections[0].id);
@@ -1102,6 +1636,8 @@ function App() {
         saving={saving} section={section} sections={data.sections} onSwitch={setActiveSectionId}
         onManage={() => setShowSectionMgr(true)} onExport={exportBackup}
         onImportClick={() => importInputRef.current?.click()}
+        onOpenGuide={() => setShowGuide(true)}
+        onOpenReportExport={() => setShowExport(true)}
       />
       <input ref={importInputRef} type="file" accept="application/json,.json" style={{ display: "none" }} onChange={importBackup} />
       <BackupBanner onExport={exportBackup} />
@@ -1113,6 +1649,7 @@ function App() {
           {tab === "attendance" && <AttendanceTab section={section} updateSection={updateSection} />}
           {tab === "grades" && <GradesTab section={section} updateSection={updateSection} />}
           {tab === "notes" && <NotesTab section={section} updateSection={updateSection} />}
+          {tab === "contacts" && <ContactsTab section={section} updateSection={updateSection} />}
           {tab === "reports" && <ReportsTab section={section} onOpenStudent={setStudentDetail} />}
         </div>
       )}
@@ -1120,6 +1657,8 @@ function App() {
       {showSectionMgr && (
         <SectionManagerModal data={data} setData={setData} activeSectionId={activeSectionId} setActiveSectionId={setActiveSectionId} onClose={() => setShowSectionMgr(false)} />
       )}
+      {showGuide && <GuideModal onClose={() => setShowGuide(false)} />}
+      {showExport && section && <ExportModal section={section} onClose={() => setShowExport(false)} />}
     </div>
   );
 }
