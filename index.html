@@ -22,6 +22,30 @@
   @keyframes marquee-scroll { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
   .marquee-track { display: inline-block; white-space: nowrap; animation: marquee-scroll 22s linear infinite; }
   .marquee-wrap:hover .marquee-track { animation-play-state: paused; }
+
+  /* ===== تجاوب مع كل أحجام الشاشات ===== */
+  .rg-attendance, .rg-notes, .rg-reports, .rg-2col { display: grid; gap: 16px; }
+  .rg-attendance { grid-template-columns: 260px 1fr; }
+  .rg-notes { grid-template-columns: 1fr 1.4fr; }
+  .rg-reports { grid-template-columns: 1.4fr 1fr; }
+  .rg-2col { grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  @media (max-width: 900px) {
+    .rg-attendance, .rg-notes, .rg-reports, .rg-2col { grid-template-columns: 1fr !important; }
+  }
+  @media (max-width: 640px) {
+    html, body { font-size: 14px; }
+    .app-container { padding-left: 12px !important; padding-right: 12px !important; }
+    .modal-card { padding: 16px !important; max-width: 100% !important; }
+    table th, table td { font-size: 12px !important; padding: 7px 6px !important; }
+    .topbar-title { font-size: 17px !important; }
+  }
+  @media (max-width: 420px) {
+    html, body { font-size: 13px; }
+    .stat-card { min-width: 46% !important; flex: 1 1 46% !important; padding: 10px 12px !important; }
+  }
+  input, select, textarea, button { max-width: 100%; }
+  img, svg { max-width: 100%; }
 </style>
 </head>
 <body>
@@ -354,7 +378,7 @@ function ImportFileModal({ fileName, headers, rows, onClose, onImportStudents })
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(19,42,38,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 16 }} onClick={onClose}>
-      <div dir="rtl" onClick={(e) => e.stopPropagation()} style={{ background: COLORS.paper, borderRadius: 18, maxWidth: 860, width: "100%", maxHeight: "90vh", overflowY: "auto", padding: 24, border: `1px solid ${COLORS.line}` }}>
+      <div dir="rtl" className="modal-card" onClick={(e) => e.stopPropagation()} style={{ background: COLORS.paper, borderRadius: 18, maxWidth: 860, width: "100%", maxHeight: "90vh", overflowY: "auto", padding: 24, border: `1px solid ${COLORS.line}` }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
           <div>
             <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.ink }}>استيراد بيانات من ملف</div>
@@ -598,7 +622,7 @@ function ContactImportModal({ fileName, headers, rows, students, onClose, onAppl
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(19,42,38,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 16 }} onClick={onClose}>
-      <div dir="rtl" onClick={(e) => e.stopPropagation()} style={{ background: COLORS.paper, borderRadius: 18, maxWidth: 640, width: "100%", maxHeight: "88vh", overflowY: "auto", padding: 24, border: `1px solid ${COLORS.line}` }}>
+      <div dir="rtl" className="modal-card" onClick={(e) => e.stopPropagation()} style={{ background: COLORS.paper, borderRadius: 18, maxWidth: 640, width: "100%", maxHeight: "88vh", overflowY: "auto", padding: 24, border: `1px solid ${COLORS.line}` }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
           <div>
             <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.ink }}>استيراد بيانات التواصل</div>
@@ -609,7 +633,7 @@ function ContactImportModal({ fileName, headers, rows, students, onClose, onAppl
         <div style={{ fontSize: 12.5, color: COLORS.muted, margin: "10px 0 14px" }}>
           حدّد عمود المطابقة (الرقم الجامعي أو الاسم) وعمودَي البريد والجوال. سيتم تحديث بيانات المتدربين الحاليين المطابقين تلقائيًا، وإضافة أي متدرب جديد غير موجود.
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+        <div className="rg-2col" style={{ marginBottom: 16 }}>
           <div>
             <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 4 }}>عمود الرقم الجامعي (للمطابقة)</div>
             <select value={idCol} onChange={(e) => setIdCol(e.target.value)} style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: `1px solid ${COLORS.line}` }}>
@@ -773,7 +797,7 @@ function AttendanceTab({ section, updateSection }) {
   const session = section.sessions.find((s) => s.id === activeSessionId);
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 16 }}>
+    <div className="rg-attendance">
       <SectionCard style={{ padding: 14, alignSelf: "start" }}>
         <div style={{ fontWeight: 800, marginBottom: 10, color: COLORS.ink }}>الجلسات</div>
         <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
@@ -936,7 +960,7 @@ function NotesTab({ section, updateSection }) {
   const removeNote = (id) => updateSection((s) => ({ ...s, notes: s.notes.filter((n) => n.id !== id) }));
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: 16 }}>
+    <div className="rg-notes">
       <SectionCard style={{ alignSelf: "start" }}>
         <div style={{ fontWeight: 800, color: COLORS.ink, marginBottom: 12 }}>إضافة ملاحظة</div>
         <div style={{ marginBottom: 10 }}>
@@ -991,7 +1015,7 @@ function ReportsTab({ section, onOpenStudent }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 16 }}>
+      <div className="rg-reports">
         <SectionCard>
           <div style={{ fontWeight: 800, color: COLORS.ink, marginBottom: 10 }}>الدرجة الموزونة لكل متدرب</div>
           <div style={{ width: "100%", height: 300, paddingTop: 10 }}>
@@ -1051,7 +1075,7 @@ function StudentDetailModal({ section, studentSid, onClose }) {
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(19,42,38,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 16 }} onClick={onClose}>
-      <div dir="rtl" onClick={(e) => e.stopPropagation()} style={{ background: COLORS.paper, borderRadius: 18, maxWidth: 760, width: "100%", maxHeight: "88vh", overflowY: "auto", padding: 24, border: `1px solid ${COLORS.line}` }}>
+      <div dir="rtl" className="modal-card" onClick={(e) => e.stopPropagation()} style={{ background: COLORS.paper, borderRadius: 18, maxWidth: 760, width: "100%", maxHeight: "88vh", overflowY: "auto", padding: 24, border: `1px solid ${COLORS.line}` }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
           <div>
             <div style={{ fontSize: 19, fontWeight: 800, color: COLORS.ink }}>{st.name}</div>
@@ -1060,7 +1084,7 @@ function StudentDetailModal({ section, studentSid, onClose }) {
           <IconBtn onClick={onClose} title="إغلاق"><Icon name="x" size={16} /></IconBtn>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 18 }}>
+        <div className="rg-2col" style={{ marginBottom: 18 }}>
           <SectionCard style={{ padding: 14 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink, marginBottom: 6 }}>نسبة الغياب</div>
             <div style={{ maxWidth: 160, margin: "0 auto", position: "relative" }}>
@@ -1121,7 +1145,7 @@ function SectionManagerModal({ data, setData, activeSectionId, setActiveSectionI
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(19,42,38,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 16 }} onClick={onClose}>
-      <div dir="rtl" onClick={(e) => e.stopPropagation()} style={{ background: COLORS.paper, borderRadius: 18, maxWidth: 560, width: "100%", maxHeight: "85vh", overflowY: "auto", padding: 24, border: `1px solid ${COLORS.line}` }}>
+      <div dir="rtl" className="modal-card" onClick={(e) => e.stopPropagation()} style={{ background: COLORS.paper, borderRadius: 18, maxWidth: 560, width: "100%", maxHeight: "85vh", overflowY: "auto", padding: 24, border: `1px solid ${COLORS.line}` }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
           <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.ink }}>إدارة الشعب</div>
           <IconBtn onClick={onClose} title="إغلاق"><Icon name="x" size={16} /></IconBtn>
@@ -1181,7 +1205,7 @@ function GuideModal({ onClose }) {
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(19,42,38,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 16 }} onClick={onClose}>
-      <div dir="rtl" onClick={(e) => e.stopPropagation()} style={{ background: COLORS.paper, borderRadius: 18, maxWidth: 820, width: "100%", maxHeight: "90vh", overflowY: "auto", padding: 26, border: `1px solid ${COLORS.line}` }}>
+      <div dir="rtl" className="modal-card" onClick={(e) => e.stopPropagation()} style={{ background: COLORS.paper, borderRadius: 18, maxWidth: 820, width: "100%", maxHeight: "90vh", overflowY: "auto", padding: 26, border: `1px solid ${COLORS.line}` }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
           <div>
             <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.ink }}>📒 دليل استخدام دفتر المتابعة</div>
@@ -1298,14 +1322,14 @@ function GuideModal({ onClose }) {
 
 function TopBar({ saving, section, sections, onSwitch, onManage, onExport, onImportClick, onOpenGuide, onOpenReportExport }) {
   return (
-    <div style={{ maxWidth: 1180, margin: "0 auto", padding: "26px 22px 0" }}>
+    <div className="app-container" style={{ maxWidth: 1180, margin: "0 auto", padding: "26px 22px 0" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 44, height: 44, borderRadius: 12, background: COLORS.gold, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <Icon name="clipboard" size={22} color={COLORS.ink} />
           </div>
           <div>
-            <div style={{ color: COLORS.paper, fontSize: 20, fontWeight: 800, letterSpacing: 0.2 }}>دفتر المتابعة</div>
+            <div className="topbar-title" style={{ color: COLORS.paper, fontSize: 20, fontWeight: 800, letterSpacing: 0.2 }}>دفتر المتابعة</div>
             <div style={{ color: section?.name ? "#F0DFAE" : "#C9BFA0", fontSize: 13, fontWeight: section?.name ? 700 : 400 }}>
               {section?.name ? section.name : "لم تُسمَّ الشعبة بعد — اضغط «إدارة الشعب» لتسميتها"}
             </div>
@@ -1340,7 +1364,7 @@ function TopBar({ saving, section, sections, onSwitch, onManage, onExport, onImp
 function StatCard({ iconName, label, value, tone }) {
   const color = tone === "bad" ? COLORS.bad : tone === "good" ? COLORS.good : COLORS.ink;
   return (
-    <div style={{ background: COLORS.paperCard, border: `1px solid ${COLORS.line}`, borderRadius: 14, padding: "14px 18px", minWidth: 175, flex: "1 1 175px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 6px 16px rgba(19,42,38,0.08)" }}>
+    <div className="stat-card" style={{ background: COLORS.paperCard, border: `1px solid ${COLORS.line}`, borderRadius: 14, padding: "14px 18px", minWidth: 175, flex: "1 1 175px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 6px 16px rgba(19,42,38,0.08)" }}>
       <div style={{ width: 38, height: 38, borderRadius: 10, background: "#F4E7C9", display: "flex", alignItems: "center", justifyContent: "center", color: COLORS.gold, flexShrink: 0 }}>
         <Icon name={iconName} size={18} />
       </div>
@@ -1536,7 +1560,7 @@ function ExportModal({ section, onClose }) {
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(19,42,38,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 16 }} onClick={onClose}>
-      <div dir="rtl" onClick={(e) => e.stopPropagation()} style={{ background: COLORS.paper, borderRadius: 18, maxWidth: 520, width: "100%", maxHeight: "85vh", overflowY: "auto", padding: 24, border: `1px solid ${COLORS.line}` }}>
+      <div dir="rtl" className="modal-card" onClick={(e) => e.stopPropagation()} style={{ background: COLORS.paper, borderRadius: 18, maxWidth: 520, width: "100%", maxHeight: "85vh", overflowY: "auto", padding: 24, border: `1px solid ${COLORS.line}` }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
           <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.ink }}>تصدير تقرير</div>
           <IconBtn onClick={onClose} title="إغلاق"><Icon name="x" size={16} /></IconBtn>
@@ -1642,7 +1666,7 @@ function App() {
       <input ref={importInputRef} type="file" accept="application/json,.json" style={{ display: "none" }} onChange={importBackup} />
       <BackupBanner onExport={exportBackup} />
       {section && (
-        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "22px 22px 60px" }}>
+        <div className="app-container" style={{ maxWidth: 1180, margin: "0 auto", padding: "22px 22px 60px" }}>
           <SectionHeader section={section} />
           <Tabs tab={tab} setTab={setTab} />
           {tab === "students" && <StudentsTab section={section} updateSection={updateSection} onOpenStudent={setStudentDetail} />}
