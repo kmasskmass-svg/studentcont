@@ -8,8 +8,6 @@
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin></script>
 <script src="https://cdn.jsdelivr.net/npm/html-docx-js/dist/html-docx.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js" crossorigin></script>
 <style>
@@ -23,6 +21,13 @@
   @keyframes marquee-scroll { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
   .marquee-track { display: inline-block; white-space: nowrap; animation: marquee-scroll 22s linear infinite; }
   .marquee-wrap:hover .marquee-track { animation-play-state: paused; }
+
+  /* الشريط العلوي: أزرار كاملة على الشاشات الواسعة، قائمة منسدلة مضغوطة على الجوال */
+  .topbar-menu-wrap { display: none; }
+  @media (max-width: 780px) {
+    .topbar-actions-inline { display: none !important; }
+    .topbar-menu-wrap { display: block !important; }
+  }
 
   /* ===== تجاوب مع كل أحجام الشاشات ===== */
   .rg-attendance, .rg-notes, .rg-reports, .rg-2col { display: grid; gap: 16px; }
@@ -376,7 +381,7 @@ function statusBg(s) { return s === "حاضر" ? "#E9F3EC" : s === "غائب" ? 
 
 function ImportFileModal({ fileName, headers, rows, onClose, onImportStudents }) {
   const [selected, setSelected] = useState(() => new Set(headers));
-  const [idCol, setIdCol] = useState(() => headers.find((h) => h.includes("رقم") && h.includes("طالب")) || headers.find((h) => h.includes("جامعي")) || "");
+  const [idCol, setIdCol] = useState(() => headers.find((h) => h.includes("رقم") && h.includes("طالب")) || headers.find((h) => h.includes("جامعي") || h.includes("أكاديمي")) || "");
   const [nameCol, setNameCol] = useState(() => headers.find((h) => h.includes("اسم")) || "");
 
   const toggle = (h) => {
@@ -441,7 +446,7 @@ function ImportFileModal({ fileName, headers, rows, onClose, onImportStudents })
           </div>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
             <div>
-              <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 4 }}>عمود الرقم الجامعي</div>
+              <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 4 }}>عمود الرقم الأكاديمي</div>
               <select value={idCol} onChange={(e) => setIdCol(e.target.value)} style={{ padding: "7px 10px", borderRadius: 8, border: `1px solid ${COLORS.line}` }}>
                 <option value="">— بدون —</option>
                 {headers.map((h, i) => <option key={`${h}_${i}`} value={h}>{h}</option>)}
@@ -557,7 +562,7 @@ function StudentsTab({ section, updateSection, onOpenStudent }) {
 
       {showBulk && (
         <div style={{ marginBottom: 16, padding: 14, background: "#F9F4E7", borderRadius: 12, border: `1px dashed ${COLORS.goldSoft}` }}>
-          <div style={{ fontSize: 12.5, color: COLORS.muted, marginBottom: 8 }}>الصق كل طالب في سطر بصيغة: الرقم الجامعي ثم الاسم (مفصولة بمسافة أو Tab)</div>
+          <div style={{ fontSize: 12.5, color: COLORS.muted, marginBottom: 8 }}>الصق كل طالب في سطر بصيغة: الرقم الأكاديمي ثم الاسم (مفصولة بمسافة أو Tab)</div>
           <textarea value={bulkText} onChange={(e) => setBulkText(e.target.value)} rows={5} placeholder={"446144915\tأسامه راشد عائض الشهراني\n446180489\tحمد بلغيث حسن الشهري"} style={{ width: "100%", padding: 10, borderRadius: 8, border: `1px solid ${COLORS.line}`, fontSize: 13, resize: "vertical" }} />
           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
             <button onClick={importBulk} style={primaryBtnStyle}><Icon name="check" size={14} /> استيراد</button>
@@ -567,7 +572,7 @@ function StudentsTab({ section, updateSection, onOpenStudent }) {
       )}
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-        <div style={{ flex: "0 0 160px" }}><TextInput placeholder="الرقم الجامعي" value={newId} onChange={(e) => setNewId(e.target.value)} /></div>
+        <div style={{ flex: "0 0 160px" }}><TextInput placeholder="الرقم الأكاديمي" value={newId} onChange={(e) => setNewId(e.target.value)} /></div>
         <div style={{ flex: "1 1 220px" }}><TextInput placeholder="اسم المتدرب" value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addStudent()} /></div>
         <button onClick={addStudent} style={primaryBtnStyle}><Icon name="plus" size={15} /> إضافة</button>
       </div>
@@ -577,7 +582,7 @@ function StudentsTab({ section, updateSection, onOpenStudent }) {
           <thead>
             <tr style={{ borderBottom: `2px solid ${COLORS.line}` }}>
               <th style={thStyle}>#</th>
-              <SortableTh label="الرقم الجامعي" active={sortKey === "id"} dir={sortDir} onClick={() => toggleSort("id")} />
+              <SortableTh label="الرقم الأكاديمي" active={sortKey === "id"} dir={sortDir} onClick={() => toggleSort("id")} />
               <SortableTh label="الاسم" active={sortKey === "name"} dir={sortDir} onClick={() => toggleSort("name")} />
               <SortableTh label="نسبة الغياب" active={sortKey === "attPct"} dir={sortDir} onClick={() => toggleSort("attPct")} />
               <SortableTh label="الدرجة الموزونة" active={sortKey === "grdTotal"} dir={sortDir} onClick={() => toggleSort("grdTotal")} />
@@ -797,7 +802,7 @@ function CalendarTab({ section, updateSection }) {
 /* ---------------- Contacts Tab (البريد والجوال) ---------------- */
 
 function ContactImportModal({ fileName, headers, rows, students, onClose, onApply }) {
-  const [idCol, setIdCol] = useState(() => headers.find((h) => h.includes("رقم") && h.includes("طالب")) || headers.find((h) => h.includes("جامعي")) || "");
+  const [idCol, setIdCol] = useState(() => headers.find((h) => h.includes("رقم") && h.includes("طالب")) || headers.find((h) => h.includes("جامعي") || h.includes("أكاديمي")) || "");
   const [nameCol, setNameCol] = useState(() => headers.find((h) => h.includes("اسم")) || "");
   const [emailCol, setEmailCol] = useState(() => headers.find((h) => h.toLowerCase().includes("email") || h.includes("بريد")) || "");
   const [phoneCol, setPhoneCol] = useState(() => headers.find((h) => h.includes("جوال") || h.includes("هاتف") || h.toLowerCase().includes("phone") || h.toLowerCase().includes("mobile")) || "");
@@ -825,11 +830,11 @@ function ContactImportModal({ fileName, headers, rows, students, onClose, onAppl
           <IconBtn onClick={onClose} title="إغلاق"><Icon name="x" size={16} /></IconBtn>
         </div>
         <div style={{ fontSize: 12.5, color: COLORS.muted, margin: "10px 0 14px" }}>
-          حدّد عمود المطابقة (الرقم الجامعي أو الاسم) وعمودَي البريد والجوال. سيتم تحديث بيانات المتدربين الحاليين المطابقين تلقائيًا، وإضافة أي متدرب جديد غير موجود.
+          حدّد عمود المطابقة (الرقم الأكاديمي أو الاسم) وعمودَي البريد والجوال. سيتم تحديث بيانات المتدربين الحاليين المطابقين تلقائيًا، وإضافة أي متدرب جديد غير موجود.
         </div>
         <div className="rg-2col" style={{ marginBottom: 16 }}>
           <div>
-            <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 4 }}>عمود الرقم الجامعي (للمطابقة)</div>
+            <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 4 }}>عمود الرقم الأكاديمي (للمطابقة)</div>
             <select value={idCol} onChange={(e) => setIdCol(e.target.value)} style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: `1px solid ${COLORS.line}` }}>
               <option value="">— بدون —</option>
               {headers.map((h, i) => <option key={`${h}_${i}`} value={h}>{h}</option>)}
@@ -876,16 +881,193 @@ function normalizeSaudiPhone(phone) {
   return digits.startsWith("+") ? digits : "+" + digits;
 }
 
+function BulkPhoneContactModal({ students, onClose }) {
+  const withPhone = students
+    .map((st) => ({ ...st, intlPhone: normalizeSaudiPhone(st.phone) }))
+    .filter((st) => st.intlPhone);
+  const [selected, setSelected] = useState(() => new Set(withPhone.map((st) => st.sid)));
+  const [message, setMessage] = useState("");
+  const [mode, setMode] = useState("whatsapp"); // "whatsapp" | "sms"
+
+  const toggle = (sid) => setSelected((prev) => { const next = new Set(prev); if (next.has(sid)) next.delete(sid); else next.add(sid); return next; });
+  const selectAll = () => setSelected(new Set(withPhone.map((st) => st.sid)));
+  const selectNone = () => setSelected(new Set());
+
+  const recipients = withPhone.filter((st) => selected.has(st.sid));
+
+  const openAllWhatsApp = () => {
+    recipients.forEach((st, i) => {
+      const link = `https://wa.me/${st.intlPhone.replace("+", "")}${message ? `?text=${encodeURIComponent(message)}` : ""}`;
+      setTimeout(() => window.open(link, "_blank"), i * 350);
+    });
+  };
+
+  const openSMS = () => {
+    if (recipients.length === 0) return;
+    const numbers = recipients.map((st) => st.intlPhone).join(",");
+    const link = `sms:${numbers}${message ? `?&body=${encodeURIComponent(message)}` : ""}`;
+    window.location.href = link;
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(19,42,38,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 16 }} onClick={onClose}>
+      <div dir="rtl" className="modal-card" onClick={(e) => e.stopPropagation()} style={{ background: COLORS.paper, borderRadius: 18, maxWidth: 640, width: "100%", maxHeight: "88vh", overflowY: "auto", padding: 24, border: `1px solid ${COLORS.line}` }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.ink }}>تواصل جماعي عبر الجوال</div>
+          <IconBtn onClick={onClose} title="إغلاق"><Icon name="x" size={16} /></IconBtn>
+        </div>
+        <div style={{ fontSize: 12.5, color: COLORS.muted, margin: "8px 0 14px" }}>
+          حدّد المستلمين (الجميع أو متدرب أو أكثر) واكتب الرسالة، ثم اختر واتساب أو رسالة نصية.
+        </div>
+
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <button onClick={() => setMode("whatsapp")} style={{ ...ghostBtnStyle, padding: "6px 14px", fontSize: 12.5, background: mode === "whatsapp" ? "#E9F3EC" : "transparent", borderColor: mode === "whatsapp" ? "#25A25A" : COLORS.goldSoft, color: mode === "whatsapp" ? "#25A25A" : "#8A6420" }}>واتساب</button>
+          <button onClick={() => setMode("sms")} style={{ ...ghostBtnStyle, padding: "6px 14px", fontSize: 12.5, background: mode === "sms" ? "#F4E7C9" : "transparent", borderColor: mode === "sms" ? COLORS.gold : COLORS.goldSoft, color: mode === "sms" ? "#8A6420" : "#8A6420" }}>رسالة نصية (SMS)</button>
+        </div>
+
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <button onClick={selectAll} style={{ ...ghostBtnStyle, padding: "5px 12px", fontSize: 12 }}>تحديد الجميع</button>
+          <button onClick={selectNone} style={{ ...ghostBtnStyle, padding: "5px 12px", fontSize: 12 }}>إلغاء التحديد</button>
+          <Badge tone="gold">{recipients.length} مستلم مُحدَّد</Badge>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 200, overflowY: "auto", marginBottom: 16, border: `1px solid ${COLORS.line}`, borderRadius: 10, padding: 10 }}>
+          {withPhone.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.muted }}>لا يوجد متدربون لديهم رقم جوال صحيح مُسجَّل بعد.</div>}
+          {withPhone.map((st) => (
+            <label key={st.sid} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 8, cursor: "pointer", background: selected.has(st.sid) ? "#F4E7C9" : "transparent" }}>
+              <input type="checkbox" checked={selected.has(st.sid)} onChange={() => toggle(st.sid)} style={{ accentColor: COLORS.gold }} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{st.name}</span>
+              <span dir="ltr" style={{ fontSize: 11.5, color: COLORS.muted }}>{st.intlPhone}</span>
+            </label>
+          ))}
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 4 }}>نص الرسالة</div>
+          <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={4} style={{ width: "100%", padding: 10, borderRadius: 9, border: `1px solid ${COLORS.line}`, fontSize: 14, resize: "vertical" }} />
+        </div>
+
+        {mode === "whatsapp" ? (
+          <>
+            <button onClick={openAllWhatsApp} disabled={recipients.length === 0} style={{ ...primaryBtnStyle, opacity: recipients.length ? 1 : 0.5 }}>
+              <Icon name="upload" size={15} /> فتح محادثة واتساب لكل مستلم
+            </button>
+            <div style={{ fontSize: 11.5, color: COLORS.muted, marginTop: 8 }}>
+              واتساب لا يدعم إرسال رسالة جماعية واحدة عبر الرابط، لذا سيفتح المتصفح محادثة منفصلة مع كل مستلم مُحدَّد (نافذة جديدة لكل واحد بفارق بسيط بينها) وتكون الرسالة معبَّأة مسبقًا — تبقى فقط الضغط على «إرسال» في كل محادثة.
+            </div>
+          </>
+        ) : (
+          <>
+            <button onClick={openSMS} disabled={recipients.length === 0} style={{ ...primaryBtnStyle, opacity: recipients.length ? 1 : 0.5 }}>
+              <Icon name="upload" size={15} /> فتح تطبيق الرسائل لكل المستلمين
+            </button>
+            <div style={{ fontSize: 11.5, color: COLORS.muted, marginTop: 8 }}>
+              سيُفتح تطبيق الرسائل النصية في جهازك مع كل المستلمين المُحدَّدين والرسالة معبَّأة مسبقًا. ملاحظة: دعم الرسائل الجماعية عبر هذا الرابط يختلف قليلًا بين آيفون وأندرويد.
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EmailComposeModal({ students, onClose }) {
+  const withEmail = students.filter((st) => st.email && st.email.includes("@"));
+  const [selected, setSelected] = useState(() => new Set(withEmail.map((st) => st.sid)));
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+
+  const toggle = (sid) => setSelected((prev) => { const next = new Set(prev); if (next.has(sid)) next.delete(sid); else next.add(sid); return next; });
+  const selectAll = () => setSelected(new Set(withEmail.map((st) => st.sid)));
+  const selectNone = () => setSelected(new Set());
+
+  const recipients = withEmail.filter((st) => selected.has(st.sid)).map((st) => st.email);
+
+  const openMailClient = () => {
+    if (recipients.length === 0) return;
+    const params = new URLSearchParams();
+    if (subject) params.set("subject", subject);
+    if (body) params.set("body", body);
+    const link = `mailto:?bcc=${encodeURIComponent(recipients.join(","))}&${params.toString()}`;
+    window.location.href = link;
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(19,42,38,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 16 }} onClick={onClose}>
+      <div dir="rtl" className="modal-card" onClick={(e) => e.stopPropagation()} style={{ background: COLORS.paper, borderRadius: 18, maxWidth: 640, width: "100%", maxHeight: "88vh", overflowY: "auto", padding: 24, border: `1px solid ${COLORS.line}` }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.ink }}>إرسال بريد إلكتروني</div>
+          <IconBtn onClick={onClose} title="إغلاق"><Icon name="x" size={16} /></IconBtn>
+        </div>
+        <div style={{ fontSize: 12.5, color: COLORS.muted, margin: "8px 0 14px" }}>
+          حدّد المستلمين (يمكن اختيار الجميع أو متدرب أو أكثر)، ثم اضغط «فتح في تطبيق البريد» لإرسالها من برنامج البريد الافتراضي في جهازك.
+        </div>
+
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <button onClick={selectAll} style={{ ...ghostBtnStyle, padding: "5px 12px", fontSize: 12 }}>تحديد الجميع</button>
+          <button onClick={selectNone} style={{ ...ghostBtnStyle, padding: "5px 12px", fontSize: 12 }}>إلغاء التحديد</button>
+          <Badge tone="gold">{recipients.length} مستلم مُحدَّد</Badge>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 220, overflowY: "auto", marginBottom: 16, border: `1px solid ${COLORS.line}`, borderRadius: 10, padding: 10 }}>
+          {withEmail.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.muted }}>لا يوجد متدربون لديهم بريد إلكتروني مُسجَّل بعد.</div>}
+          {withEmail.map((st) => (
+            <label key={st.sid} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 8, cursor: "pointer", background: selected.has(st.sid) ? "#F4E7C9" : "transparent" }}>
+              <input type="checkbox" checked={selected.has(st.sid)} onChange={() => toggle(st.sid)} style={{ accentColor: COLORS.gold }} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{st.name}</span>
+              <span dir="ltr" style={{ fontSize: 11.5, color: COLORS.muted }}>{st.email}</span>
+            </label>
+          ))}
+        </div>
+
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 4 }}>الموضوع (اختياري)</div>
+          <TextInput value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="مثال: تذكير بموعد التسليم" />
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 4 }}>نص الرسالة (اختياري)</div>
+          <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5} style={{ width: "100%", padding: 10, borderRadius: 9, border: `1px solid ${COLORS.line}`, fontSize: 14, resize: "vertical" }} />
+        </div>
+
+        <button onClick={openMailClient} disabled={recipients.length === 0} style={{ ...primaryBtnStyle, opacity: recipients.length ? 1 : 0.5 }}>
+          <Icon name="upload" size={15} /> فتح في تطبيق البريد
+        </button>
+        <div style={{ fontSize: 11.5, color: COLORS.muted, marginTop: 8 }}>
+          سيُفتح برنامج البريد الافتراضي في جهازك (مثل Outlook أو Gmail) مع تعبئة المستلمين تلقائيًا في خانة BCC للحفاظ على خصوصية القائمة.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ContactsTab({ section, updateSection }) {
   const fileInputRef = useRef(null);
   const [importData, setImportData] = useState(null);
   const [importError, setImportError] = useState("");
   const [sortKey, setSortKey] = useState(null);
   const [sortDir, setSortDir] = useState("asc");
+  const [showEmailCompose, setShowEmailCompose] = useState(false);
+  const [showPhoneCompose, setShowPhoneCompose] = useState(false);
   const toggleSort = (key) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else { setSortKey(key); setSortDir("asc"); }
   };
+
+  // تعبئة تلقائية فورية: أي متدرب بلا بريد إلكتروني يُنسخ رقمه الأكاديمي مباشرة قبل @tvtc.edu.sa
+  useEffect(() => {
+    const needsFill = section.students.some((st) => !st.email && String(st.id || "").replace(/\D/g, ""));
+    if (!needsFill) return;
+    updateSection((s) => ({
+      ...s,
+      students: s.students.map((st) => {
+        if (st.email) return st;
+        const digitsId = String(st.id || "").replace(/\D/g, "");
+        if (!digitsId) return st;
+        return { ...st, email: `${digitsId}@tvtc.edu.sa` };
+      }),
+    }));
+    // eslint-disable-next-line
+  }, [section.students.length]);
 
   const setField = (sid, field, value) => updateSection((s) => ({ ...s, students: s.students.map((st) => st.sid === sid ? { ...st, [field]: value } : st) }));
 
@@ -935,7 +1117,7 @@ function ContactsTab({ section, updateSection }) {
   };
 
   const exportContacts = () => {
-    const header = ["الاسم", "الرقم الجامعي", "البريد الإلكتروني", "الجوال"];
+    const header = ["الاسم", "الرقم الأكاديمي", "البريد الإلكتروني", "الجوال"];
     const lines = [header.join(",")];
     section.students.forEach((st) => {
       const row = [st.name, st.id, st.email || "", st.phone || ""].map((v) => `"${String(v).replace(/"/g, '""')}"`);
@@ -960,10 +1142,12 @@ function ContactsTab({ section, updateSection }) {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={handleFileChange} />
           <button onClick={() => fileInputRef.current?.click()} style={ghostBtnStyle}><Icon name="upload" size={15} /> استيراد من ملف Excel / CSV</button>
-          <button onClick={generateDefaultEmails} style={ghostBtnStyle} title="يولّد بريدًا بصيغة الرقم الجامعي@tvtc.edu.sa لكل من لا يملك بريدًا">
+          <button onClick={generateDefaultEmails} style={ghostBtnStyle} title="يولّد بريدًا بصيغة الرقم الأكاديمي@tvtc.edu.sa لكل من لا يملك بريدًا">
             <Icon name="userPlus" size={15} /> توليد البريد الافتراضي (tvtc.edu.sa)
           </button>
           <button onClick={exportContacts} style={primaryBtnStyle}><Icon name="download" size={15} /> تصدير القائمة</button>
+          <button onClick={() => setShowEmailCompose(true)} style={primaryBtnStyle}><Icon name="note" size={15} /> إرسال بريد إلكتروني</button>
+          <button onClick={() => setShowPhoneCompose(true)} style={primaryBtnStyle}><Icon name="userPlus" size={15} /> تواصل جماعي (واتساب/رسائل)</button>
         </div>
       </div>
 
@@ -974,7 +1158,7 @@ function ContactsTab({ section, updateSection }) {
           <thead>
             <tr style={{ borderBottom: `2px solid ${COLORS.line}` }}>
               <SortableTh label="الاسم" active={sortKey === "name"} dir={sortDir} onClick={() => toggleSort("name")} />
-              <SortableTh label="الرقم الجامعي" active={sortKey === "id"} dir={sortDir} onClick={() => toggleSort("id")} />
+              <SortableTh label="الرقم الأكاديمي" active={sortKey === "id"} dir={sortDir} onClick={() => toggleSort("id")} />
               <SortableTh label="البريد الإلكتروني" active={sortKey === "email"} dir={sortDir} onClick={() => toggleSort("email")} />
               <SortableTh label="الجوال" active={sortKey === "phone"} dir={sortDir} onClick={() => toggleSort("phone")} />
               <th style={thStyle}>تواصل سريع</th>
@@ -990,8 +1174,8 @@ function ContactsTab({ section, updateSection }) {
                 <tr key={st.sid} style={{ borderBottom: `1px solid ${COLORS.line}` }}>
                   <td style={{ ...tdStyle, fontWeight: 700 }}>{st.name}</td>
                   <td style={tdStyle}>{st.id}</td>
-                  <td style={tdStyle}><TextInput type="email" placeholder="44xxxxxxx@tvtc.edu.sa" value={st.email} onChange={(e) => setField(st.sid, "email", e.target.value)} style={{ minWidth: 190 }} /></td>
-                  <td style={tdStyle}><TextInput type="tel" placeholder="05xxxxxxxx" value={st.phone} onChange={(e) => setField(st.sid, "phone", e.target.value)} style={{ minWidth: 140 }} /></td>
+                  <td style={tdStyle}><TextInput type="email" dir="ltr" placeholder="44xxxxxxx@tvtc.edu.sa" value={st.email} onChange={(e) => setField(st.sid, "email", e.target.value)} style={{ minWidth: 190, textAlign: "left" }} /></td>
+                  <td style={tdStyle}><TextInput type="tel" dir="ltr" placeholder="05xxxxxxxx" value={st.phone} onChange={(e) => setField(st.sid, "phone", e.target.value)} style={{ minWidth: 140, textAlign: "left" }} /></td>
                   <td style={tdStyle}>
                     {!intlPhone ? (
                       <span style={{ fontSize: 11.5, color: COLORS.muted }}>أدخل رقم جوال</span>
@@ -1017,6 +1201,8 @@ function ContactsTab({ section, updateSection }) {
           onClose={() => setImportData(null)} onApply={applyContactImport}
         />
       )}
+      {showEmailCompose && <EmailComposeModal students={section.students} onClose={() => setShowEmailCompose(false)} />}
+      {showPhoneCompose && <BulkPhoneContactModal students={section.students} onClose={() => setShowPhoneCompose(false)} />}
     </SectionCard>
   );
 }
@@ -1394,7 +1580,7 @@ function StudentDetailModal({ section, studentSid, onClose }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
           <div>
             <div style={{ fontSize: 19, fontWeight: 800, color: COLORS.ink }}>{st.name}</div>
-            <div style={{ fontSize: 12.5, color: COLORS.muted }}>الرقم الجامعي: {st.id}</div>
+            <div style={{ fontSize: 12.5, color: COLORS.muted }}>الرقم الأكاديمي: {st.id}</div>
           </div>
           <IconBtn onClick={onClose} title="إغلاق"><Icon name="x" size={16} /></IconBtn>
         </div>
@@ -1546,16 +1732,16 @@ function GuideModal({ onClose }) {
 
         <Sec title="٣. تبويب «المتدربون»">
           <Sub title="أ) الإضافة اليدوية" />
-          <p>أدخل الرقم الجامعي واسم المتدرب ثم اضغط «إضافة».</p>
+          <p>أدخل الرقم الأكاديمي واسم المتدرب ثم اضغط «إضافة».</p>
           <Sub title="ب) الاستيراد الجماعي (نص)" />
-          <p>الصق قائمة الطلاب سطرًا لكل طالب (الرقم الجامعي ثم الاسم) واضغط «استيراد».</p>
+          <p>الصق قائمة الطلاب سطرًا لكل طالب (الرقم الأكاديمي ثم الاسم) واضغط «استيراد».</p>
           <Sub title="ج) الاستيراد من ملف Excel أو CSV" />
           <Ol items={[
             "ادخل رايات ثم متابعة الحضور ثم اختر الشعبة ثم اضغط الترس الموجود في أعلى اليسار واختر تصدير واحفظ الملف في مكان واضح دون أن تغير صيغته.",
             "اضغط زر «استيراد من ملف Excel / CSV» في التطبيق، واختر الملف الذي صدرته أو أي ملف جاهز سابقًا بصيغة (.xlsx / .xls / .csv).",
             "سيستخرج التطبيق أسماء كل الأعمدة تلقائيًا ويعرضها لك.",
             "حدّد الأعمدة التي تريد عرضها في المعاينة (اختياري).",
-            "اختر عمود «الرقم الجامعي» وعمود «اسم الطالب» من القائمتين.",
+            "اختر عمود «الرقم الأكاديمي» وعمود «اسم الطالب» من القائمتين.",
             "اضغط «استيراد كمتدربين» لإضافتهم مباشرة (يتجاهل التكرار تلقائيًا).",
           ]} />
         </Sec>
@@ -1592,11 +1778,18 @@ function GuideModal({ onClose }) {
         <Sec title="٧. تبويب «التواصل»">
           <p>يعرض هذا التبويب البريد الإلكتروني والجوال لكل متدرب، مع وسائل تواصل سريعة:</p>
           <Ul items={[
-            "أدخل البريد الإلكتروني والجوال مباشرة في الجدول لكل متدرب.",
-            "زر «توليد البريد الافتراضي (tvtc.edu.sa)» يولّد بريدًا تلقائيًا بصيغة الرقم الجامعي@tvtc.edu.sa (مثال: 44xxxxxxx@tvtc.edu.sa) لكل متدرب لا يملك بريدًا مُدخلًا مسبقًا.",
-            "بمجرد إدخال رقم جوال صحيح، تظهر أمام المتدرب أيقونات تواصل سريع: واتساب، تيليجرام، ورسالة نصية (SMS) — تفتح المحادثة مباشرة مع ذلك الرقم.",
-            "زر «استيراد من ملف Excel / CSV» يتيح رفع ملف يحوي البريد أو الجوال ومطابقته تلقائيًا بالرقم الجامعي أو الاسم.",
-            "زر «تصدير القائمة» يُنزّل قائمة التواصل كاملة (الاسم، الرقم الجامعي، البريد، الجوال) بصيغة CSV يمكن فتحها في Excel.",
+            "بمجرد فتح هذا التبويب، يُعبَّأ تلقائيًا وفورًا حقل البريد الإلكتروني لكل متدرب لا يملك بريدًا بنسخ رقمه الأكاديمي مباشرة متبوعًا بـ tvtc.edu.sa@، ويمكنك تعديله يدويًا لأي متدرب.",
+            "بمجرد إدخال رقم جوال صحيح، تظهر أمام المتدرب أيقونات تواصل سريع فردية: واتساب، تيليجرام، ورسالة نصية (SMS) — تفتح المحادثة مباشرة مع ذلك الرقم.",
+            "زر «استيراد من ملف Excel / CSV» يتيح رفع ملف يحوي البريد أو الجوال ومطابقته تلقائيًا بالرقم الأكاديمي أو الاسم.",
+            "زر «تصدير القائمة» يُنزّل قائمة التواصل كاملة (الاسم، الرقم الأكاديمي، البريد، الجوال) بصيغة CSV يمكن فتحها في Excel.",
+          ]} />
+          <Sub title="إرسال بريد إلكتروني جماعي" />
+          <p>زر «إرسال بريد إلكتروني» يفتح نافذة لاختيار المستلمين (الجميع، أو متدرب، أو عدة متدربين)، وكتابة موضوع ونص اختياريين، ثم فتح برنامج البريد الافتراضي مع تعبئة المستلمين في خانة BCC.</p>
+          <Sub title="تواصل جماعي عبر واتساب أو رسائل نصية" />
+          <p>زر «تواصل جماعي (واتساب/رسائل)» يفتح نافذة مشابهة لاختيار المستلمين وكتابة رسالة واحدة، مع خيارين:</p>
+          <Ul items={[
+            "واتساب: بما أنه لا يدعم إرسال رسالة جماعية واحدة عبر الرابط، يفتح التطبيق محادثة منفصلة مع كل مستلم مُحدَّد (نافذة جديدة لكل واحد) مع الرسالة معبَّأة مسبقًا، فتبقى فقط الضغط على «إرسال» في كل محادثة.",
+            "رسالة نصية (SMS): يفتح تطبيق الرسائل في جهازك مع كل المستلمين المُحدَّدين والرسالة معبَّأة مسبقًا (قد يختلف دعم تعدد المستلمين قليلًا بين آيفون وأندرويد).",
           ]} />
         </Sec>
 
@@ -1684,6 +1877,32 @@ function GuideModal({ onClose }) {
 }
 
 function TopBar({ saving, section, sections, onSwitch, onManage, onExport, onImportClick, onOpenGuide, onOpenReportExport }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [menuOpen]);
+
+  const actions = [
+    { key: "manage", icon: "settings", label: "إدارة الشعب", onClick: onManage, tone: "ghost" },
+    { key: "guide", icon: "clipboard", label: "دليل الاستخدام", onClick: onOpenGuide, tone: "ghost" },
+    { key: "reportExport", icon: "note", label: "تصدير تقرير", onClick: onOpenReportExport, tone: "ghost" },
+    { key: "backupExport", icon: "download", label: "تصدير نسخة احتياطية", onClick: onExport, tone: "gold" },
+    { key: "backupImport", icon: "upload", label: "استيراد نسخة احتياطية", onClick: onImportClick, tone: "ghost" },
+  ];
+
+  const actionBtnStyle = (tone) => ({
+    display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 10,
+    border: `1px solid ${COLORS.goldSoft}`,
+    background: tone === "gold" ? COLORS.gold : "transparent",
+    color: tone === "gold" ? COLORS.ink : COLORS.goldSoft,
+    fontSize: 13.5, cursor: "pointer", fontWeight: tone === "gold" ? 800 : 700, whiteSpace: "nowrap",
+  });
+
   return (
     <div className="app-container" style={{ maxWidth: 1180, margin: "0 auto", padding: "26px 22px 0" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14 }}>
@@ -1698,26 +1917,37 @@ function TopBar({ saving, section, sections, onSwitch, onManage, onExport, onImp
             </div>
           </div>
         </div>
+
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <div style={{ fontSize: 12, color: saving ? COLORS.goldSoft : "#9FB8A9", minWidth: 78, textAlign: "center" }}>{saving ? "جارِ الحفظ..." : "محفوظ ✓"}</div>
-          <select value={section?.id || ""} onChange={(e) => onSwitch(e.target.value)} style={{ padding: "9px 12px", borderRadius: 10, border: `1px solid ${COLORS.goldSoft}`, background: "#1E3F38", color: COLORS.paper, fontSize: 13.5, minWidth: 200 }}>
+          <select value={section?.id || ""} onChange={(e) => onSwitch(e.target.value)} style={{ padding: "9px 12px", borderRadius: 10, border: `1px solid ${COLORS.goldSoft}`, background: "#1E3F38", color: COLORS.paper, fontSize: 13.5, minWidth: 160 }}>
             {sections.map((s) => <option key={s.id} value={s.id}>{s.name || "(بدون اسم)"}</option>)}
           </select>
-          <button onClick={onManage} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 10, border: `1px solid ${COLORS.goldSoft}`, background: "transparent", color: COLORS.goldSoft, fontSize: 13.5, cursor: "pointer", fontWeight: 700 }}>
-            <Icon name="settings" size={16} /> إدارة الشعب
-          </button>
-          <button onClick={onOpenGuide} title="دليل استخدام التطبيق" style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 10, border: `1px solid ${COLORS.goldSoft}`, background: "transparent", color: COLORS.goldSoft, fontSize: 13.5, cursor: "pointer", fontWeight: 700 }}>
-            <Icon name="clipboard" size={16} /> دليل الاستخدام
-          </button>
-          <button onClick={onOpenReportExport} title="تصدير تقرير PDF أو Word" style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 10, border: `1px solid ${COLORS.goldSoft}`, background: "transparent", color: COLORS.goldSoft, fontSize: 13.5, cursor: "pointer", fontWeight: 700 }}>
-            <Icon name="note" size={16} /> تصدير تقرير
-          </button>
-          <button onClick={onExport} title="تنزيل نسخة احتياطية بصيغة JSON" style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 10, border: `1px solid ${COLORS.goldSoft}`, background: COLORS.gold, color: COLORS.ink, fontSize: 13.5, cursor: "pointer", fontWeight: 800 }}>
-            <Icon name="download" size={16} /> تصدير نسخة احتياطية
-          </button>
-          <button onClick={onImportClick} title="استيراد نسخة احتياطية سابقة" style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 10, border: `1px solid ${COLORS.goldSoft}`, background: "transparent", color: COLORS.goldSoft, fontSize: 13.5, cursor: "pointer", fontWeight: 700 }}>
-            <Icon name="upload" size={16} /> استيراد نسخة احتياطية
-          </button>
+
+          {/* أزرار كاملة على الشاشات الواسعة */}
+          <div className="topbar-actions-inline" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            {actions.map((a) => (
+              <button key={a.key} onClick={a.onClick} title={a.label} style={actionBtnStyle(a.tone)}>
+                <Icon name={a.icon} size={16} /> {a.label}
+              </button>
+            ))}
+          </div>
+
+          {/* زر قائمة مضغوط للجوال */}
+          <div className="topbar-menu-wrap" ref={menuRef} style={{ position: "relative" }}>
+            <button onClick={() => setMenuOpen((v) => !v)} title="مزيد من الخيارات" style={{ ...actionBtnStyle("ghost"), padding: "9px 12px" }}>
+              <Icon name="settings" size={17} />
+            </button>
+            {menuOpen && (
+              <div style={{ position: "absolute", left: 0, top: "calc(100% + 8px)", background: COLORS.paperCard, border: `1px solid ${COLORS.line}`, borderRadius: 12, boxShadow: "0 10px 30px rgba(0,0,0,0.25)", padding: 8, display: "flex", flexDirection: "column", gap: 4, minWidth: 220, zIndex: 60 }}>
+                {actions.map((a) => (
+                  <button key={a.key} onClick={() => { a.onClick(); setMenuOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 8, border: "none", background: a.tone === "gold" ? "#F4E7C9" : "transparent", color: a.tone === "gold" ? "#8A6420" : COLORS.ink, fontSize: 13.5, fontWeight: 700, cursor: "pointer", textAlign: "right", width: "100%" }}>
+                    <Icon name={a.icon} size={16} /> {a.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -1807,7 +2037,7 @@ function buildExportHTML(section, sel) {
   let body = `<h1>${esc(section.name || "شعبة بدون اسم")}</h1><p>تاريخ التصدير: ${new Date().toLocaleDateString("ar")}</p>`;
 
   if (sel.students) {
-    body += "<h2>المتدربون</h2><table><tr><th>#</th><th>الرقم الجامعي</th><th>الاسم</th><th>نسبة الغياب</th><th>الدرجة الموزونة</th></tr>";
+    body += "<h2>المتدربون</h2><table><tr><th>#</th><th>الرقم الأكاديمي</th><th>الاسم</th><th>نسبة الغياب</th><th>الدرجة الموزونة</th></tr>";
     section.students.forEach((st, i) => {
       const att = computeAttendancePct(section, st.sid);
       const grd = computeWeightedTotal(section, st.sid);
@@ -1851,9 +2081,9 @@ function buildExportHTML(section, sel) {
   }
 
   if (sel.contacts) {
-    body += "<h2>التواصل</h2><table><tr><th>الاسم</th><th>الرقم الجامعي</th><th>البريد الإلكتروني</th><th>الجوال</th></tr>";
+    body += "<h2>التواصل</h2><table><tr><th>الاسم</th><th>الرقم الأكاديمي</th><th>البريد الإلكتروني</th><th>الجوال</th></tr>";
     section.students.forEach((st) => {
-      body += `<tr><td>${esc(st.name)}</td><td>${esc(st.id)}</td><td>${esc(st.email || "-")}</td><td>${esc(st.phone || "-")}</td></tr>`;
+      body += `<tr><td>${esc(st.name)}</td><td>${esc(st.id)}</td><td dir="ltr" style="text-align:left">${esc(st.email || "-")}</td><td dir="ltr" style="text-align:left">${esc(st.phone || "-")}</td></tr>`;
     });
     body += "</table>";
   }
@@ -1874,7 +2104,6 @@ function buildExportHTML(section, sel) {
 
 function ExportModal({ section, onClose }) {
   const [sel, setSel] = useState({ students: true, attendance: true, grades: true, notes: true, contacts: true, reports: true });
-  const [busy, setBusy] = useState(false);
   const toggle = (k) => setSel((v) => ({ ...v, [k]: !v[k] }));
   const setAll = (val) => setSel({ students: val, attendance: val, grades: val, notes: val, contacts: val, reports: val });
   const anySelected = Object.values(sel).some(Boolean);
@@ -1895,31 +2124,24 @@ function ExportModal({ section, onClose }) {
     const blob = window.htmlDocx.asBlob(html);
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `${fileBase}.doc`;
+    a.href = url; a.download = `${fileBase}.docx`;
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
   };
 
-  const doExportPDF = async () => {
-    if (!window.jspdf || !window.html2canvas) { alert("تعذّر تحميل مكتبة تصدير PDF، تحقق من اتصالك بالإنترنت وحاول مجددًا."); return; }
-    setBusy(true);
+  const doExportPDF = () => {
     const html = buildExportHTML(section, sel);
-    const container = document.createElement("div");
-    container.style.position = "fixed"; container.style.left = "-9999px"; container.style.top = "0";
-    container.style.width = "800px"; container.style.background = "#fff";
-    container.innerHTML = html;
-    document.body.appendChild(container);
-    try {
-      const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ unit: "pt", format: "a4" });
-      await pdf.html(container, {
-        x: 20, y: 20, width: 555, windowWidth: 800,
-        callback: (doc) => { doc.save(`${fileBase}.pdf`); container.remove(); setBusy(false); },
-      });
-    } catch (e) {
-      container.remove(); setBusy(false);
-      alert("حدث خطأ أثناء إنشاء ملف PDF.");
-    }
+    const win = window.open("", "_blank");
+    if (!win) { alert("يرجى السماح للنوافذ المنبثقة (Popups) في هذا الموقع، ثم حاول مجددًا."); return; }
+    win.document.open();
+    win.document.write(html.replace("</head>", `<style>
+      @media print { @page { margin: 16mm; } }
+      body { padding: 10px; }
+    </style></head>`));
+    win.document.close();
+    win.onload = () => { win.focus(); win.print(); };
+    // بعض المتصفحات لا تُطلق onload لنافذة مكتوبة عبر document.write بشكل موثوق
+    setTimeout(() => { try { win.focus(); win.print(); } catch (e) {} }, 400);
   };
 
   return (
@@ -1949,9 +2171,12 @@ function ExportModal({ section, onClose }) {
           <button onClick={doExportWord} disabled={!anySelected} style={{ ...primaryBtnStyle, opacity: anySelected ? 1 : 0.5 }}>
             <Icon name="download" size={15} /> تصدير Word
           </button>
-          <button onClick={doExportPDF} disabled={!anySelected || busy} style={{ ...ghostBtnStyle, opacity: (anySelected && !busy) ? 1 : 0.5 }}>
-            <Icon name="download" size={15} /> {busy ? "جارِ التصدير..." : "تصدير PDF"}
+          <button onClick={doExportPDF} disabled={!anySelected} style={{ ...ghostBtnStyle, opacity: anySelected ? 1 : 0.5 }}>
+            <Icon name="download" size={15} /> تصدير PDF
           </button>
+        </div>
+        <div style={{ fontSize: 11.5, color: COLORS.muted, marginTop: 10 }}>
+          سيفتح تصدير PDF نافذة طباعة المتصفح — اختر «حفظ كـ PDF» (Save as PDF) من قائمة الطابعات لحفظه كملف.
         </div>
       </div>
     </div>
