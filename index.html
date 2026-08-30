@@ -18,14 +18,32 @@
   ::-webkit-scrollbar-thumb { background: #C9B98A; border-radius: 8px; }
   table { border-collapse: collapse; width: 100%; }
   button { font-family: inherit; }
-  @keyframes marquee-scroll { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
-  .marquee-track { display: inline-block; white-space: nowrap; animation: marquee-scroll 130s linear infinite; }
+  @keyframes marquee-scroll { 0% { left: -100%; } 100% { left: 100%; } }
+  .marquee-wrap { position: relative; overflow: hidden; }
+  .marquee-track { position: absolute; top: 0; white-space: nowrap; animation: marquee-scroll 130s linear infinite; }
 
   /* الشريط العلوي: أزرار كاملة على الشاشات الواسعة، قائمة منسدلة مضغوطة على الجوال */
   .topbar-menu-wrap { display: none; }
   @media (max-width: 780px) {
     .topbar-actions-inline { display: none !important; }
     .topbar-menu-wrap { display: block !important; }
+  }
+
+  /* ===== الزر العائم البارز لدليل الاستخدام ===== */
+  .guide-fab { transition: transform .15s ease; }
+  .guide-fab:hover { transform: scale(1.05); }
+  .guide-fab-ring {
+    position: absolute; inset: -6px; border-radius: 999px;
+    border: 2px solid #B9862F; opacity: 0.7;
+    animation: guide-fab-pulse 2.2s ease-out infinite;
+    pointer-events: none;
+  }
+  @keyframes guide-fab-pulse {
+    0% { transform: scale(1); opacity: 0.7; }
+    100% { transform: scale(1.35); opacity: 0; }
+  }
+  @media (max-width: 640px) {
+    .guide-fab { bottom: 14px !important; left: 14px !important; padding: 10px 14px !important; font-size: 13px !important; }
   }
 
   /* ===== تجاوب مع كل أحجام الشاشات ===== */
@@ -1923,7 +1941,7 @@ function GuideModal({ onClose }) {
   );
 }
 
-function TopBar({ saving, section, sections, onSwitch, onManage, onExport, onImportClick, onOpenGuide, onOpenReportExport }) {
+function TopBar({ saving, section, sections, onSwitch, onManage, onExport, onImportClick, onOpenReportExport }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -1936,7 +1954,6 @@ function TopBar({ saving, section, sections, onSwitch, onManage, onExport, onImp
 
   const actions = [
     { key: "manage", icon: "settings", label: "إدارة الشعب", onClick: onManage, tone: "ghost" },
-    { key: "guide", icon: "clipboard", label: "دليل الاستخدام", onClick: onOpenGuide, tone: "ghost" },
     { key: "reportExport", icon: "note", label: "تصدير تقرير", onClick: onOpenReportExport, tone: "ghost" },
     { key: "backupExport", icon: "download", label: "تصدير نسخة احتياطية", onClick: onExport, tone: "gold" },
     { key: "backupImport", icon: "upload", label: "استيراد نسخة احتياطية", onClick: onImportClick, tone: "ghost" },
@@ -2072,9 +2089,9 @@ function BackupBanner({ onExport }) {
       className="marquee-wrap"
       onClick={() => setPaused((v) => !v)}
       title={paused ? "اضغط لمتابعة الحركة" : "اضغط لإيقاف الحركة والقراءة بتمعّن"}
-      style={{ background: "#5B3A1E", overflow: "hidden", padding: "8px 0", borderTop: `1px solid ${COLORS.goldSoft}`, borderBottom: `1px solid ${COLORS.goldSoft}`, cursor: "pointer" }}
+      style={{ background: "#5B3A1E", height: 34, borderTop: `1px solid ${COLORS.goldSoft}`, borderBottom: `1px solid ${COLORS.goldSoft}`, cursor: "pointer" }}
     >
-      <div className="marquee-track" style={{ color: "#FCEFD1", fontSize: 13, fontWeight: 700, animationPlayState: paused ? "paused" : "running" }}>
+      <div className="marquee-track" style={{ color: "#FCEFD1", fontSize: 13, fontWeight: 700, lineHeight: "34px", animationPlayState: paused ? "paused" : "running" }}>
         {message} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {message}
       </div>
     </div>
@@ -2242,6 +2259,27 @@ function ExportModal({ section, onClose }) {
   );
 }
 
+function GuideFab({ onOpen }) {
+  return (
+    <button
+      onClick={onOpen}
+      className="guide-fab"
+      title="دليل استخدام التطبيق"
+      style={{
+        position: "fixed", bottom: 22, left: 18, zIndex: 90,
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "12px 18px", borderRadius: 999, border: "none", cursor: "pointer",
+        background: COLORS.gold, color: COLORS.ink, fontWeight: 800, fontSize: 14,
+        boxShadow: "0 8px 22px rgba(185,134,47,0.55), 0 2px 6px rgba(0,0,0,0.25)",
+      }}
+    >
+      <span className="guide-fab-ring" />
+      <Icon name="clipboard" size={19} />
+      دليل الاستخدام
+    </button>
+  );
+}
+
 function App() {
   const { data, setData, status, saving } = useStorage();
   const [activeSectionId, setActiveSectionId] = useState(null);
@@ -2304,11 +2342,11 @@ function App() {
 
   return (
     <div dir="rtl" style={shellStyle}>
+      <GuideFab onOpen={() => setShowGuide(true)} />
       <TopBar
         saving={saving} section={section} sections={data.sections} onSwitch={setActiveSectionId}
         onManage={() => setShowSectionMgr(true)} onExport={exportBackup}
         onImportClick={() => importInputRef.current?.click()}
-        onOpenGuide={() => setShowGuide(true)}
         onOpenReportExport={() => setShowExport(true)}
       />
       <input ref={importInputRef} type="file" accept="application/json,.json" style={{ display: "none" }} onChange={importBackup} />
