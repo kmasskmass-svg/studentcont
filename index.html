@@ -19,8 +19,7 @@
   table { border-collapse: collapse; width: 100%; }
   button { font-family: inherit; }
   @keyframes marquee-scroll { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
-  .marquee-track { display: inline-block; white-space: nowrap; animation: marquee-scroll 22s linear infinite; }
-  .marquee-wrap:hover .marquee-track { animation-play-state: paused; }
+  .marquee-track { display: inline-block; white-space: nowrap; animation: marquee-scroll 55s linear infinite; }
 
   /* الشريط العلوي: أزرار كاملة على الشاشات الواسعة، قائمة منسدلة مضغوطة على الجوال */
   .topbar-menu-wrap { display: none; }
@@ -108,7 +107,7 @@ function formatDateByMode(isoDate, mode) {
 const COLORS = {
   ink: "#132A26", ink2: "#1E3F38", paper: "#F4EFE4", paperCard: "#FFFDF8",
   gold: "#B9862F", goldSoft: "#E6C888", line: "#DED2B3",
-  good: "#3E7A5E", warn: "#C97A2B", bad: "#A63B34", muted: "#7A7161",
+  good: "#3E7A5E", warn: "#C97A2B", bad: "#A63B34", muted: "#7A7161", late: "#3E6FBF",
 };
 const PIE_COLORS = ["#B9862F", "#3E7A5E", "#1E3F38", "#C97A2B", "#7A9E8C", "#8C6D3F"];
 
@@ -179,7 +178,7 @@ function computeAttendancePct(section, studentSid) {
   const total = planned > 0 ? planned : recorded;
   let absent = 0;
   section.sessions.forEach((s) => {
-    const st = section.attendance[`${s.id}:${studentSid}`];
+    const st = getAttStatus(section.attendance[`${s.id}:${studentSid}`]);
     if (st === "غائب") absent += 1;
   });
   if (total === 0) return { pct: 0, absentCount: absent, total: 0, recorded };
@@ -374,8 +373,9 @@ const primaryBtnStyle = { display: "flex", alignItems: "center", gap: 6, padding
 const ghostBtnStyle = { display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 9, border: `1px solid ${COLORS.goldSoft}`, background: "transparent", color: "#8A6420", fontWeight: 700, fontSize: 13, cursor: "pointer" };
 const shellStyle = { minHeight: "100vh", background: `linear-gradient(180deg, ${COLORS.ink} 0%, ${COLORS.ink2} 220px, ${COLORS.paper} 220px)`, fontFamily: "'Segoe UI', Tahoma, 'Geeza Pro', system-ui, sans-serif" };
 
-function statusColor(s) { return s === "حاضر" ? COLORS.good : s === "غائب" ? COLORS.bad : COLORS.warn; }
-function statusBg(s) { return s === "حاضر" ? "#E9F3EC" : s === "غائب" ? "#F7E8E6" : "#FBEEDD"; }
+function getAttStatus(val) { return val && typeof val === "object" ? val.status : val; }
+function statusColor(s) { return s === "حاضر" ? COLORS.good : s === "غائب" ? COLORS.bad : s === "حضور متأخر" ? COLORS.late : COLORS.warn; }
+function statusBg(s) { return s === "حاضر" ? "#E9F3EC" : s === "غائب" ? "#F7E8E6" : s === "حضور متأخر" ? "#E8EEFB" : "#FBEEDD"; }
 
 /* ---------------- Import File Modal (اختيار الأعمدة) ---------------- */
 
@@ -1214,6 +1214,8 @@ function AttendanceTab({ section, updateSection }) {
   const [newDate, setNewDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [activeSessionId, setActiveSessionId] = useState(section.sessions[section.sessions.length - 1]?.id || null);
   const [sortAlpha, setSortAlpha] = useState(false);
+  const [lateEditingSid, setLateEditingSid] = useState(null);
+  const [lateTemp, setLateTemp] = useState({ arrivalTime: "", lateMinutes: "" });
 
   useEffect(() => {
     if (!activeSessionId && section.sessions.length) setActiveSessionId(section.sessions[section.sessions.length - 1].id);
@@ -1234,6 +1236,10 @@ function AttendanceTab({ section, updateSection }) {
 
   const setStatus = (studentSid, status) => {
     updateSection((sec) => ({ ...sec, attendance: { ...sec.attendance, [`${activeSessionId}:${studentSid}`]: status } }));
+  };
+
+  const setLateStatus = (studentSid, arrivalTime, lateMinutes) => {
+    updateSection((sec) => ({ ...sec, attendance: { ...sec.attendance, [`${activeSessionId}:${studentSid}`]: { status: "حضور متأخر", arrivalTime, lateMinutes } } }));
   };
 
   const setAllStatus = (status) => {
@@ -1328,15 +1334,55 @@ function AttendanceTab({ section, updateSection }) {
 
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {displayStudents.map((st) => {
-                  const cur = section.attendance[`${session.id}:${st.sid}`] || null;
+                  const rawCur = section.attendance[`${session.id}:${st.sid}`] || null;
+                  const cur = getAttStatus(rawCur);
+                  const lateInfo = rawCur && typeof rawCur === "object" ? rawCur : null;
+                  const editingLate = lateEditingSid === st.sid;
                   return (
-                    <div key={st.sid} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 4px", borderBottom: `1px solid ${COLORS.line}` }}>
-                      <div style={{ fontSize: 14, color: COLORS.ink }}>{st.name} <span style={{ color: COLORS.muted, fontSize: 12 }}>({st.id})</span></div>
-                      <div style={{ display: "flex", gap: 6 }}>
-                        {["حاضر", "غائب", "مستأذن"].map((opt) => (
-                          <button key={opt} onClick={() => setStatus(st.sid, opt)} style={{ padding: "6px 12px", borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: "pointer", border: `1px solid ${cur === opt ? statusColor(opt) : COLORS.line}`, background: cur === opt ? statusBg(opt) : "#fff", color: cur === opt ? statusColor(opt) : COLORS.muted }}>{opt}</button>
-                        ))}
+                    <div key={st.sid} style={{ borderBottom: `1px solid ${COLORS.line}`, padding: "8px 4px" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                        <div style={{ fontSize: 14, color: COLORS.ink }}>
+                          {st.name} <span style={{ color: COLORS.muted, fontSize: 12 }}>({st.id})</span>
+                          {lateInfo && (
+                            <div style={{ fontSize: 11, color: COLORS.late, marginTop: 2 }}>
+                              وصل الساعة {lateInfo.arrivalTime || "—"} — تأخر {lateInfo.lateMinutes || 0} دقيقة
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                          {["حاضر", "غائب", "مستأذن"].map((opt) => (
+                            <button key={opt} onClick={() => { setStatus(st.sid, opt); setLateEditingSid(null); }} style={{ padding: "6px 12px", borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: "pointer", border: `1px solid ${cur === opt ? statusColor(opt) : COLORS.line}`, background: cur === opt ? statusBg(opt) : "#fff", color: cur === opt ? statusColor(opt) : COLORS.muted }}>{opt}</button>
+                          ))}
+                          <button
+                            onClick={() => {
+                              if (editingLate) { setLateEditingSid(null); return; }
+                              setLateTemp({ arrivalTime: lateInfo?.arrivalTime || "", lateMinutes: lateInfo?.lateMinutes ?? "" });
+                              setLateEditingSid(st.sid);
+                            }}
+                            style={{ padding: "6px 12px", borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: "pointer", border: `1px solid ${cur === "حضور متأخر" ? statusColor("حضور متأخر") : COLORS.line}`, background: cur === "حضور متأخر" ? statusBg("حضور متأخر") : "#fff", color: cur === "حضور متأخر" ? statusColor("حضور متأخر") : COLORS.muted }}
+                          >
+                            حضور متأخر
+                          </button>
+                        </div>
                       </div>
+                      {editingLate && (
+                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end", marginTop: 10, padding: "10px 12px", background: "#EEF2FB", borderRadius: 9, border: `1px dashed ${COLORS.late}` }}>
+                          <div>
+                            <div style={{ fontSize: 11.5, color: COLORS.muted, marginBottom: 4 }}>وقت الحضور</div>
+                            <input type="time" value={lateTemp.arrivalTime} onChange={(e) => setLateTemp((v) => ({ ...v, arrivalTime: e.target.value }))} style={{ padding: "7px 10px", borderRadius: 8, border: `1px solid ${COLORS.line}` }} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 11.5, color: COLORS.muted, marginBottom: 4 }}>عدد دقائق التأخير</div>
+                            <input type="number" min={0} value={lateTemp.lateMinutes} onChange={(e) => setLateTemp((v) => ({ ...v, lateMinutes: e.target.value }))} style={{ width: 90, padding: "7px 10px", borderRadius: 8, border: `1px solid ${COLORS.line}`, textAlign: "center" }} />
+                          </div>
+                          <button
+                            onClick={() => { setLateStatus(st.sid, lateTemp.arrivalTime, lateTemp.lateMinutes === "" ? 0 : Number(lateTemp.lateMinutes)); setLateEditingSid(null); }}
+                            style={{ ...primaryBtnStyle, background: COLORS.late, color: "#fff" }}
+                          >
+                            <Icon name="check" size={14} /> حفظ
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1757,14 +1803,15 @@ function GuideModal({ onClose }) {
           <Ol items={[
             "اختر تاريخ الجلسة وأدخل اسمًا لها (اختياري) ثم اضغط زر الإضافة.",
             "اختر الجلسة من القائمة لعرضها.",
-            "أمام كل متدرب اضغط «حاضر» أو «غائب» أو «مستأذن».",
+            "أمام كل متدرب اضغط «حاضر» أو «غائب» أو «مستأذن»، أو «حضور متأخر».",
+            "عند اختيار «حضور متأخر» يظهر نموذج صغير لإدخال وقت الحضور وعدد دقائق التأخير، ثم اضغط «حفظ».",
           ]} />
           <Sub title="إجراءات سريعة" />
           <Ul items={[
             "أزرار «تحضير الكل» و«تغييب الكل» و«استئذان الكل» تطبّق نفس الحالة على كل المتدربين في الجلسة الحالية بضغطة واحدة.",
             "زر «ترتيب الأسماء أبجديًا» يعيد ترتيب قائمة المتدربين في شاشة تسجيل الحضور حسب الاسم لتسهيل المتابعة.",
           ]} />
-          <p>يظهر تنبيه أحمر عند تجاوز نسبة الغياب الحدَّ المسموح به (قابل للتعديل من «إدارة الشعب»).</p>
+          <p>يظهر تنبيه أحمر عند تجاوز نسبة الغياب الحدَّ المسموح به (قابل للتعديل من «إدارة الشعب»). ملاحظة: «حضور متأخر» يُعامَل كحضور فعلي ولا يُحتسب ضمن نسبة الغياب.</p>
         </Sec>
 
         <Sec title="٥. تبويب «الدرجات»">
@@ -1836,7 +1883,7 @@ function GuideModal({ onClose }) {
             "«تصدير نسخة احتياطية»: يُنزّل كل بيانات كل الشعب كملف JSON — احتفظ به في مكان آمن.",
             "«استيراد نسخة احتياطية»: يستعيد البيانات من ملف مُصدَّر سابقًا.",
           ]} />
-          <Note label="تذكير">يُنصح بأخذ نسخة احتياطية أسبوعيًا على الأقل، وخصوصًا بعد أي جلسة حضور أو رصد درجات مهمة.</Note>
+          <Note label="تذكير">يظهر شريط متحرك أعلى الصفحة يذكّر دوريًا بأخذ نسخة احتياطية وبإمكانية نقل محتويات الدفتر بين الأجهزة. يمكنك إيقاف حركته مؤقتًا للقراءة بتمعّن بالنقر عليه، والنقر مجددًا لاستئناف الحركة. يُنصح بأخذ نسخة احتياطية أسبوعيًا على الأقل، وخصوصًا بعد أي جلسة حضور أو رصد درجات مهمة.</Note>
 
           <Sub title="نقل النسخة بين الأجهزة (مثال: من الكمبيوتر إلى الجوال)" />
           <Ol items={[
@@ -2018,11 +2065,17 @@ function Tabs({ tab, setTab }) {
 /* ---------------- Main App ---------------- */
 
 function BackupBanner({ onExport }) {
+  const [paused, setPaused] = useState(false);
+  const message = "⚠️ تنبيه هام: هذا التطبيق يحفظ بياناتك في متصفح هذا الجهاز فقط ولا يرسلها لأي خادم — يُرجى أخذ نسخة احتياطية (تصدير) بشكل دوري لتفادي فقدان البيانات عند مسح ذاكرة المتصفح أو تغيير الجهاز أو تعطّله. اضغط زر «تصدير نسخة احتياطية» في أعلى الصفحة الآن.  •  💡 يمكنك أيضًا تصدير محتويات الدفتر بالكامل (كل الشعب والمتدربين) من هذا الجهاز واستيرادها في جهاز آخر — كمبيوتر إلى جوال، أو العكس — عبر زرَّي «تصدير نسخة احتياطية» و«استيراد نسخة احتياطية».";
   return (
-    <div className="marquee-wrap" style={{ background: "#5B3A1E", overflow: "hidden", padding: "8px 0", borderTop: `1px solid ${COLORS.goldSoft}`, borderBottom: `1px solid ${COLORS.goldSoft}` }}>
-      <div className="marquee-track" style={{ color: "#FCEFD1", fontSize: 13, fontWeight: 700 }}>
-        ⚠️ تنبيه هام: هذا التطبيق يحفظ بياناتك في متصفح هذا الجهاز فقط ولا يرسلها لأي خادم — يُرجى أخذ نسخة احتياطية (تصدير) بشكل دوري لتفادي فقدان البيانات عند مسح ذاكرة المتصفح أو تغيير الجهاز أو تعطّله. اضغط زر «تصدير نسخة احتياطية» في أعلى الصفحة الآن. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        ⚠️ تنبيه هام: هذا التطبيق يحفظ بياناتك في متصفح هذا الجهاز فقط ولا يرسلها لأي خادم — يُرجى أخذ نسخة احتياطية (تصدير) بشكل دوري لتفادي فقدان البيانات عند مسح ذاكرة المتصفح أو تغيير الجهاز أو تعطّله. اضغط زر «تصدير نسخة احتياطية» في أعلى الصفحة الآن.
+    <div
+      className="marquee-wrap"
+      onClick={() => setPaused((v) => !v)}
+      title={paused ? "اضغط لمتابعة الحركة" : "اضغط لإيقاف الحركة والقراءة بتمعّن"}
+      style={{ background: "#5B3A1E", overflow: "hidden", padding: "8px 0", borderTop: `1px solid ${COLORS.goldSoft}`, borderBottom: `1px solid ${COLORS.goldSoft}`, cursor: "pointer" }}
+    >
+      <div className="marquee-track" style={{ color: "#FCEFD1", fontSize: 13, fontWeight: 700, animationPlayState: paused ? "paused" : "running" }}>
+        {message} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {message}
       </div>
     </div>
   );
@@ -2052,7 +2105,13 @@ function buildExportHTML(section, sel) {
     else {
       body += "<table><tr><th>الاسم</th>" + section.sessions.map((s) => `<th>${esc(s.label)}<br/>${esc(s.date)}</th>`).join("") + "</tr>";
       section.students.forEach((st) => {
-        body += `<tr><td>${esc(st.name)}</td>` + section.sessions.map((s) => `<td>${esc(section.attendance[`${s.id}:${st.sid}`] || "-")}</td>`).join("") + "</tr>";
+        body += `<tr><td>${esc(st.name)}</td>` + section.sessions.map((s) => {
+          const raw = section.attendance[`${s.id}:${st.sid}`];
+          let display = "-";
+          if (raw && typeof raw === "object") display = `${raw.status} (${raw.arrivalTime || "—"}، تأخر ${raw.lateMinutes || 0} د)`;
+          else if (raw) display = raw;
+          return `<td>${esc(display)}</td>`;
+        }).join("") + "</tr>";
       });
       body += "</table>";
     }
