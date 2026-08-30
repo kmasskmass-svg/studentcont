@@ -22,12 +22,16 @@
   .marquee-wrap { position: relative; overflow: hidden; }
   .marquee-track { position: absolute; top: 0; white-space: nowrap; animation: marquee-scroll 130s linear infinite; }
 
-  /* الشريط العلوي: أزرار كاملة على الشاشات الواسعة، قائمة منسدلة مضغوطة على الجوال */
-  .topbar-menu-wrap { display: none; }
-  @media (max-width: 780px) {
-    .topbar-actions-inline { display: none !important; }
-    .topbar-menu-wrap { display: block !important; }
+  /* ===== شريط تحكم قابل للتمرير الأفقي: سحب بالمؤشر على الكمبيوتر، وتمرير طبيعي بالإصبع على الجوال ===== */
+  .drag-scroll-row {
+    cursor: grab;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
+  .drag-scroll-row::-webkit-scrollbar { display: none; }
+  .drag-scroll-row:active { cursor: grabbing; }
 
   /* ===== الزر العائم البارز لدليل الاستخدام ===== */
   .guide-fab { transition: transform .15s ease; }
@@ -1942,15 +1946,23 @@ function GuideModal({ onClose }) {
 }
 
 function TopBar({ saving, section, sections, onSwitch, onManage, onExport, onImportClick, onOpenReportExport }) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef(null);
+  const dragRef = useRef(null);
+  const dragState = useRef({ down: false, startX: 0, startScroll: 0, moved: false });
 
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handler = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [menuOpen]);
+  const onDragStart = (clientX) => {
+    const el = dragRef.current;
+    if (!el) return;
+    dragState.current = { down: true, startX: clientX, startScroll: el.scrollLeft, moved: false };
+  };
+  const onDragMove = (clientX) => {
+    const el = dragRef.current;
+    if (!el || !dragState.current.down) return;
+    const dx = clientX - dragState.current.startX;
+    if (Math.abs(dx) > 3) dragState.current.moved = true;
+    el.scrollLeft = dragState.current.startScroll - dx;
+  };
+  const onDragEnd = () => { dragState.current.down = false; };
+  const suppressClickIfDragged = (e) => { if (dragState.current.moved) { e.preventDefault(); e.stopPropagation(); } };
 
   const actions = [
     { key: "manage", icon: "settings", label: "إدارة الشعب", onClick: onManage, tone: "ghost" },
@@ -1969,49 +1981,38 @@ function TopBar({ saving, section, sections, onSwitch, onManage, onExport, onImp
 
   return (
     <div className="app-container" style={{ maxWidth: 1180, margin: "0 auto", padding: "26px 22px 0" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "nowrap", gap: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
           <div style={{ width: 44, height: 44, borderRadius: 12, background: COLORS.gold, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <Icon name="clipboard" size={22} color={COLORS.ink} />
           </div>
           <div>
-            <div className="topbar-title" style={{ color: COLORS.paper, fontSize: 20, fontWeight: 800, letterSpacing: 0.2 }}>دفتر المتابعة</div>
-            <div style={{ color: section?.name ? "#F0DFAE" : "#C9BFA0", fontSize: 13, fontWeight: section?.name ? 700 : 400 }}>
-              {section?.name ? section.name : "لم تُسمَّ الشعبة بعد — اضغط «إدارة الشعب» لتسميتها"}
+            <div className="topbar-title" style={{ color: COLORS.paper, fontSize: 20, fontWeight: 800, letterSpacing: 0.2, whiteSpace: "nowrap" }}>دفتر المتابعة</div>
+            <div style={{ color: section?.name ? "#F0DFAE" : "#C9BFA0", fontSize: 13, fontWeight: section?.name ? 700 : 400, whiteSpace: "nowrap" }}>
+              {section?.name ? section.name : "لم تُسمَّ الشعبة بعد"}
             </div>
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <div style={{ fontSize: 12, color: saving ? COLORS.goldSoft : "#9FB8A9", minWidth: 78, textAlign: "center" }}>{saving ? "جارِ الحفظ..." : "محفوظ ✓"}</div>
-          <select value={section?.id || ""} onChange={(e) => onSwitch(e.target.value)} style={{ padding: "9px 12px", borderRadius: 10, border: `1px solid ${COLORS.goldSoft}`, background: "#1E3F38", color: COLORS.paper, fontSize: 13.5, minWidth: 160 }}>
+        <div
+          ref={dragRef}
+          className="drag-scroll-row"
+          onMouseDown={(e) => onDragStart(e.clientX)}
+          onMouseMove={(e) => onDragMove(e.clientX)}
+          onMouseUp={onDragEnd}
+          onMouseLeave={onDragEnd}
+          onClickCapture={suppressClickIfDragged}
+          style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "nowrap", overflowX: "auto", flex: "1 1 auto", minWidth: 0 }}
+        >
+          <div style={{ fontSize: 12, color: saving ? COLORS.goldSoft : "#9FB8A9", minWidth: 78, textAlign: "center", flexShrink: 0 }}>{saving ? "جارِ الحفظ..." : "محفوظ ✓"}</div>
+          <select value={section?.id || ""} onChange={(e) => onSwitch(e.target.value)} style={{ padding: "9px 12px", borderRadius: 10, border: `1px solid ${COLORS.goldSoft}`, background: "#1E3F38", color: COLORS.paper, fontSize: 13.5, minWidth: 160, flexShrink: 0 }}>
             {sections.map((s) => <option key={s.id} value={s.id}>{s.name || "(بدون اسم)"}</option>)}
           </select>
-
-          {/* أزرار كاملة على الشاشات الواسعة */}
-          <div className="topbar-actions-inline" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            {actions.map((a) => (
-              <button key={a.key} onClick={a.onClick} title={a.label} style={actionBtnStyle(a.tone)}>
-                <Icon name={a.icon} size={16} /> {a.label}
-              </button>
-            ))}
-          </div>
-
-          {/* زر قائمة مضغوط للجوال */}
-          <div className="topbar-menu-wrap" ref={menuRef} style={{ position: "relative" }}>
-            <button onClick={() => setMenuOpen((v) => !v)} title="مزيد من الخيارات" style={{ ...actionBtnStyle("ghost"), padding: "9px 12px" }}>
-              <Icon name="settings" size={17} />
+          {actions.map((a) => (
+            <button key={a.key} onClick={a.onClick} title={a.label} style={{ ...actionBtnStyle(a.tone), flexShrink: 0 }}>
+              <Icon name={a.icon} size={16} /> {a.label}
             </button>
-            {menuOpen && (
-              <div style={{ position: "absolute", left: 0, top: "calc(100% + 8px)", background: COLORS.paperCard, border: `1px solid ${COLORS.line}`, borderRadius: 12, boxShadow: "0 10px 30px rgba(0,0,0,0.25)", padding: 8, display: "flex", flexDirection: "column", gap: 4, minWidth: 220, zIndex: 60 }}>
-                {actions.map((a) => (
-                  <button key={a.key} onClick={() => { a.onClick(); setMenuOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 8, border: "none", background: a.tone === "gold" ? "#F4E7C9" : "transparent", color: a.tone === "gold" ? "#8A6420" : COLORS.ink, fontSize: 13.5, fontWeight: 700, cursor: "pointer", textAlign: "right", width: "100%" }}>
-                    <Icon name={a.icon} size={16} /> {a.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          ))}
         </div>
       </div>
     </div>
